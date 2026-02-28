@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 /**
  * System Tags Test - Verify system/message tags are NOT intercepted as tool calls

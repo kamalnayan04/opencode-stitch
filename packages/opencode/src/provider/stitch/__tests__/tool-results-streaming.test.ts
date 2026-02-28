@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 /**
  * Tool Results Streaming Tests

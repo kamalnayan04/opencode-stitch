@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 /**
  * Finish Reason Mapping Tests

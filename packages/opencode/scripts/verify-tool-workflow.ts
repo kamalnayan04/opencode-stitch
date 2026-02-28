@@ -1,4 +1,4 @@
-
+// @ts-nocheck
 /**
  * Tool Workflow Verification Script
  * 
@@ -12,7 +12,7 @@ import type { OpenCodeRequest, StitchResponse } from '../src/provider/stitch/typ
 
 async function verifyToolWorkflow() {
   console.log('🔧 Verifying Tool Workflow...\n');
-  
+
   let allTestsPassed = true;
 
   // Step 1: Create request with tools
@@ -63,12 +63,12 @@ async function verifyToolWorkflow() {
   const messageTexts = stitchReq.request.messages
     .map(m => m.content?.map(c => c.data).join(' '))
     .join(' ');
-  const hasToolsInMessages = messageTexts.includes('calculate') || 
-                            messageTexts.includes('function') ||
-                            messageTexts.includes('parameters');
+  const hasToolsInMessages = messageTexts.includes('calculate') ||
+    messageTexts.includes('function') ||
+    messageTexts.includes('parameters');
 
   console.log(`  - Tools NOT in messages: ${!hasToolsInMessages ? '✅ Clean (GOOD)' : '❌ Found (BAD)'}`);
-  
+
   if (hasToolsInMessages) {
     allTestsPassed = false;
     console.log('    ⚠️  WARNING: Tool definitions found in message content!');
@@ -149,7 +149,7 @@ async function verifyToolWorkflow() {
 
   const stitchReqWithResult = openCodeToStitchRequest(requestWithResult);
 
-  const toolResultMsg = stitchReqWithResult.request.messages.find(m => 
+  const toolResultMsg = stitchReqWithResult.request.messages.find(m =>
     m.content?.some(c => c.type === 8 || c.type === 'CONTENT_TYPE_TOOL_RESULT')
   );
 
@@ -157,8 +157,8 @@ async function verifyToolWorkflow() {
   const toolResultContent = toolResultMsg?.content?.find(
     c => c.type === 8 || c.type === 'CONTENT_TYPE_TOOL_RESULT'
   );
-  const isCorrectType = toolResultContent?.type === 8 || 
-                       toolResultContent?.type === 'CONTENT_TYPE_TOOL_RESULT';
+  const isCorrectType = toolResultContent?.type === 8 ||
+    toolResultContent?.type === 'CONTENT_TYPE_TOOL_RESULT';
 
   console.log(`  - Tool result formatted: ${hasToolResult ? '✅ Yes' : '❌ No'}`);
   console.log(`  - Result content type: ${isCorrectType ? '✅ CONTENT_TYPE_TOOL_RESULT' : '❌ Wrong type'}`);

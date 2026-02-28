@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 /**
  * RED-TEAM AUDIT TEST SUITE

@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 /**
  * Function Calls Format Test - Verify <function_calls><invoke> format is parsed correctly

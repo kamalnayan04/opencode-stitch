@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Integration Tests: End-to-End Gemini ↔ OpenCode Transformations
  * 

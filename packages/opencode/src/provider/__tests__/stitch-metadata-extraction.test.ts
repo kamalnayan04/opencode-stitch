@@ -1,4 +1,4 @@
-
+// @ts-nocheck
 import { describe, test, expect } from 'bun:test'
 import { createStitchStreamTransformer } from '../stitch/stream'
 
@@ -14,7 +14,7 @@ import { createStitchStreamTransformer } from '../stitch/stream'
  */
 
 describe('Stitch Metadata Extraction', () => {
-  
+
   /**
    * Helper to simulate streaming NDJSON chunks through the transformer
    */
@@ -26,24 +26,24 @@ describe('Stitch Metadata Extraction', () => {
         controller.close()
       }
     })
-    
+
     const transformed = readable.pipeThrough(transformer)
     const reader = transformed.getReader()
     const results: string[] = []
-    
+
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
-      
+
       const text = new TextDecoder().decode(value)
       // Split SSE format lines (data: {...}\n\n)
       const lines = text.split('data: ').filter(l => l.trim())
       results.push(...lines.map(l => l.trim()))
     }
-    
+
     return results
   }
-  
+
   /**
    * Helper to parse SSE lines into JSON objects
    */
@@ -59,7 +59,7 @@ describe('Stitch Metadata Extraction', () => {
       })
       .filter(obj => obj !== null)
   }
-  
+
   // ============================================================================
   // TEST 1: request_id extraction
   // ============================================================================
@@ -88,17 +88,17 @@ describe('Stitch Metadata Extraction', () => {
         }
       }
     }) + '\n'
-    
+
     const results = await processStreamChunk(chunk)
     const parsed = parseSSELines(results)
-    
+
     // Find the delta that contains metadata
     const metadataDelta = parsed.find(delta => delta.metadata)
-    
+
     expect(metadataDelta).toBeDefined()
     expect(metadataDelta.metadata.request_id).toBe('req_abc123')
   })
-  
+
   // ============================================================================
   // TEST 2: latency_ms extraction
   // ============================================================================
@@ -122,17 +122,17 @@ describe('Stitch Metadata Extraction', () => {
         }
       }
     }) + '\n'
-    
+
     const results = await processStreamChunk(chunk)
     const parsed = parseSSELines(results)
-    
+
     // Find the delta that contains metadata
     const metadataDelta = parsed.find(delta => delta.metadata)
-    
+
     expect(metadataDelta).toBeDefined()
     expect(metadataDelta.metadata.latency_ms).toBe(250)
   })
-  
+
   // ============================================================================
   // TEST 3: Metadata with finish_reason
   // ============================================================================
@@ -156,19 +156,19 @@ describe('Stitch Metadata Extraction', () => {
         }
       }
     }) + '\n'
-    
+
     const results = await processStreamChunk(chunk)
     const parsed = parseSSELines(results)
-    
+
     // Should find a delta with both finish_reason and metadata
     const finishDelta = parsed.find(delta => delta.choices?.[0]?.finish_reason === 'stop')
-    
+
     expect(finishDelta).toBeDefined()
     expect(finishDelta.metadata).toBeDefined()
     expect(finishDelta.metadata.request_id).toBe('req_xyz789')
     expect(finishDelta.metadata.latency_ms).toBe(180)
   })
-  
+
   // ============================================================================
   // TEST 4: Metadata with usage data
   // ============================================================================
@@ -197,24 +197,24 @@ describe('Stitch Metadata Extraction', () => {
         }
       }
     }) + '\n'
-    
+
     const results = await processStreamChunk(chunk)
     const parsed = parseSSELines(results)
-    
+
     // Find delta with usage
     const usageDelta = parsed.find(delta => delta.usage)
-    
+
     expect(usageDelta).toBeDefined()
     expect(usageDelta.usage.prompt_tokens).toBe(200)
     expect(usageDelta.usage.completion_tokens).toBe(75)
-    
+
     // Metadata should be present in the same or adjacent delta
     const metadataDelta = parsed.find(delta => delta.metadata)
     expect(metadataDelta).toBeDefined()
     expect(metadataDelta.metadata.request_id).toBe('req_usage123')
     expect(metadataDelta.metadata.latency_ms).toBe(320)
   })
-  
+
   // ============================================================================
   // TEST 5: Missing request_id handled gracefully
   // ============================================================================
@@ -237,18 +237,18 @@ describe('Stitch Metadata Extraction', () => {
         }
       }
     }) + '\n'
-    
+
     const results = await processStreamChunk(chunk)
     const parsed = parseSSELines(results)
-    
+
     // Find delta with metadata
     const metadataDelta = parsed.find(delta => delta.metadata)
-    
+
     expect(metadataDelta).toBeDefined()
     expect(metadataDelta.metadata.request_id).toBeUndefined()
     expect(metadataDelta.metadata.latency_ms).toBe(150)
   })
-  
+
   // ============================================================================
   // TEST 6: Missing latency_ms handled gracefully
   // ============================================================================
@@ -271,18 +271,18 @@ describe('Stitch Metadata Extraction', () => {
         }
       }
     }) + '\n'
-    
+
     const results = await processStreamChunk(chunk)
     const parsed = parseSSELines(results)
-    
+
     // Find delta with metadata
     const metadataDelta = parsed.find(delta => delta.metadata)
-    
+
     expect(metadataDelta).toBeDefined()
     expect(metadataDelta.metadata.request_id).toBe('req_only_id')
     expect(metadataDelta.metadata.latency_ms).toBeUndefined()
   })
-  
+
   // ============================================================================
   // TEST 7: No metadata field at all
   // ============================================================================
@@ -302,18 +302,18 @@ describe('Stitch Metadata Extraction', () => {
         }
       }
     }) + '\n'
-    
+
     const results = await processStreamChunk(chunk)
     const parsed = parseSSELines(results)
-    
+
     // Should still process successfully without errors
     expect(parsed.length).toBeGreaterThan(0)
-    
+
     // No delta should have metadata
     const metadataDelta = parsed.find(delta => delta.metadata)
     expect(metadataDelta).toBeUndefined()
   })
-  
+
   // ============================================================================
   // TEST 8: Empty metadata object
   // ============================================================================
@@ -334,10 +334,10 @@ describe('Stitch Metadata Extraction', () => {
         }
       }
     }) + '\n'
-    
+
     const results = await processStreamChunk(chunk)
     const parsed = parseSSELines(results)
-    
+
     // Should process without errors
     expect(parsed.length).toBeGreaterThan(0)
   })

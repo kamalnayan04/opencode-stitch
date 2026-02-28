@@ -1,5 +1,5 @@
 
-import { RetryConfig, ErrorRecoverability } from './types';
+import { ErrorRecoverability, type RetryConfig } from './types';
 import { classifyError } from './error-classifier';
 import { TelemetryLogger } from '../robustness/telemetry';
 
@@ -19,22 +19,22 @@ export const DEFAULT_RETRY_CONFIG: RetryConfig = {
  * @returns Delay in milliseconds
  */
 export function calculateBackoffDelay(
-  attemptNumber: number, 
+  attemptNumber: number,
   config: RetryConfig
 ): number {
   // Exponential: delay = baseDelay * (multiplier ^ attemptNumber)
   let delay = config.baseDelayMs * Math.pow(config.backoffMultiplier, attemptNumber);
-  
+
   // Cap at max delay
   delay = Math.min(delay, config.maxDelayMs);
-  
+
   // Add jitter to prevent thundering herd
   if (config.jitter) {
     // Random jitter between -30% and +30% of the delay
-    const jitterRange = delay * 0.3; 
+    const jitterRange = delay * 0.3;
     delay += (Math.random() * jitterRange * 2) - jitterRange;
   }
-  
+
   // Ensure delay is at least 0 and integer
   return Math.max(0, Math.floor(delay));
 }
@@ -60,18 +60,18 @@ export async function withRetry<T>(
   errorClassifier: (e: any) => ErrorRecoverability = classifyError
 ): Promise<T> {
   const telemetry = TelemetryLogger.getInstance();
-  
+
   const context: RetryContext = {
     attemptNumber: 0,
     lastError: null,
     totalDelay: 0,
     startTime: Date.now()
   };
-  
+
   while (context.attemptNumber <= config.maxAttempts) {
     try {
       const result = await operation();
-      
+
       // Log success if this was a retry
       if (context.attemptNumber > 0) {
         telemetry.log({
@@ -84,13 +84,13 @@ export async function withRetry<T>(
           }
         });
       }
-      
+
       return result;
-      
+
     } catch (error) {
       context.lastError = error instanceof Error ? error : new Error(String(error));
       const recoverability = errorClassifier(error);
-      
+
       // If we've exhausted attempts, throw immediately
       if (context.attemptNumber >= config.maxAttempts) {
         telemetry.log({
@@ -118,15 +118,15 @@ export async function withRetry<T>(
         });
         throw context.lastError;
       }
-      
+
       // Calculate delay based on recoverability
-      const delay = recoverability === ErrorRecoverability.RETRIABLE 
+      const delay = recoverability === ErrorRecoverability.RETRIABLE
         ? 0  // Immediate retry for transient network errors
         : calculateBackoffDelay(context.attemptNumber, config);
-      
+
       context.totalDelay += delay;
       context.attemptNumber++;
-      
+
       telemetry.log({
         eventType: 'retry_attempt',
         severity: 'info',
@@ -137,14 +137,14 @@ export async function withRetry<T>(
           recoverability
         }
       });
-      
+
       // Wait before next attempt
       if (delay > 0) {
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
   }
-  
+
   // Should never be reached due to throw in loop
   throw context.lastError || new Error('Retry logic error');
 }

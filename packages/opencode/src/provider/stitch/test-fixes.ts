@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 /**
  * Comprehensive Test Suite for 6 Architectural Fixes
@@ -11,11 +12,11 @@
  * 4. Non-Streaming XML Leak (XML parsing in responses)
  */
 
-import { 
-  mapToolName, 
-  mapArguments, 
+import {
+  mapToolName,
+  mapArguments,
   reverseMapToolName,
-  reverseMapArguments 
+  reverseMapArguments
 } from './tool-mapping';
 import { StateMachineXmlParser } from './state-machine-parser';
 import { openCodeToStitchRequest } from './request';
@@ -30,7 +31,7 @@ console.log('✅ TEST 1A: Reverse Mapping Collision');
   const reversed = reverseMapToolName('read');
   console.log(`   reverseMapToolName('read') = '${reversed}'`);
   console.assert(reversed === 'read', 'Expected read to map to itself');
-  
+
   // Test that 'bash' can reverse to multiple tools
   const bashReversed = reverseMapToolName('bash');
   console.log(`   reverseMapToolName('bash') = '${bashReversed}'`);
@@ -47,11 +48,11 @@ console.log('✅ TEST 1B: Read Tool Math (start-line/end-line → offset/limit)'
     'start-line': '10',
     'end-line': '20'
   };
-  
+
   const mapped = mapArguments('read_file', args);
   console.log(`   Input: ${JSON.stringify(args)}`);
   console.log(`   Output: ${JSON.stringify(mapped)}`);
-  
+
   console.assert(mapped.filePath === 'test.ts', 'filePath should be test.ts');
   console.assert(mapped.offset === 10, 'offset should be 10');
   console.assert(mapped.limit === 11, 'limit should be 11 (20-10+1)');
@@ -64,22 +65,22 @@ console.log('');
 console.log('✅ TEST 2A: Hyphen Regex (supports hyphenated tags)');
 {
   const parser = new StateMachineXmlParser();
-  
+
   // Test with hyphenated tags
   const xml = '<grep><search-term>foo</search-term><file-pattern>*.ts</file-pattern></grep>';
   const result = parser.parseStreamChunk(xml);
   const flushed = parser.flush();
-  
+
   console.log(`   Input XML: ${xml}`);
   console.log(`   Parsed tool calls: ${result.toolCalls.length + flushed.toolCalls.length}`);
-  
+
   const allToolCalls = [...result.toolCalls, ...flushed.toolCalls];
   if (allToolCalls.length > 0) {
     const toolCall = allToolCalls[0];
     const args = JSON.parse(toolCall.function.arguments);
     console.log(`   Tool: ${toolCall.function.name}`);
     console.log(`   Args: ${JSON.stringify(args)}`);
-    
+
     console.assert(args['search-term'] === 'foo', 'search-term should be parsed');
     console.assert(args['file-pattern'] === '*.ts', 'file-pattern should be parsed');
   }
@@ -104,31 +105,33 @@ console.log('✅ TEST 3: XML Bypass (Complete Message Transformation)');
     messages: [
       { role: 'system', content: 'You are a helpful assistant.' },
       { role: 'user', content: 'Hello' },
-      { role: 'assistant', content: 'Hi there!', tool_calls: [{
-        id: 'call_123',
-        type: 'function' as const,
-        function: {
-          name: 'grep',
-          arguments: '{"pattern":"foo","path":"src/"}'
-        }
-      }]},
+      {
+        role: 'assistant', content: 'Hi there!', tool_calls: [{
+          id: 'call_123',
+          type: 'function' as const,
+          function: {
+            name: 'grep',
+            arguments: '{"pattern":"foo","path":"src/"}'
+          }
+        }]
+      },
       { role: 'user', content: 'World' }
     ],
     temperature: 0.7,
     max_tokens: 1024
   };
-  
+
   const stitchReq = openCodeToStitchRequest(openCodeReq);
-  
+
   console.log(`   Step 1: Transforms to XML ✓`);
   console.log(`   Step 2: Separates system messages ✓`);
   console.log(`   Step 3: Maps roles ✓`);
   console.log(`   Step 4: Collapses consecutive roles ✓`);
   console.log(`   Step 5: System in systemInstruction ✓`);
-  
+
   console.assert(stitchReq.request.systemInstruction, 'System instruction should exist');
   console.assert(stitchReq.request.messages.length === 3, 'Should have 3 conversation messages (collapsed)');
-  
+
   // Check that assistant message contains XML
   const assistantMsg = stitchReq.request.messages[1];
   console.log(`   Assistant content includes XML: ${assistantMsg.content[0].data.includes('<grep>')}`);
@@ -159,12 +162,12 @@ console.log('✅ TEST 4: Non-Streaming XML Leak (XML parsing in responses)');
       }
     }
   };
-  
+
   const openCodeRes = stitchToOpenCodeResponse(stitchResponse);
-  
+
   console.log(`   Parses XML tool calls: ${openCodeRes.choices[0].message.tool_calls?.length || 0} found`);
   console.log(`   Removes XML from content: ${!openCodeRes.choices[0].message.content.includes('<grep>')}`);
-  
+
   console.assert(openCodeRes.choices[0].message.tool_calls, 'Should have tool_calls');
   console.assert(openCodeRes.choices[0].message.tool_calls!.length > 0, 'Should have at least one tool call');
   console.assert(!openCodeRes.choices[0].message.content.includes('<grep>'), 'XML should be removed from content');

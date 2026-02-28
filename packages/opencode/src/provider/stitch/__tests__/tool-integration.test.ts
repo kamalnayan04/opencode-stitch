@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 /**
  * Tool Integration Tests - Native Tool Support

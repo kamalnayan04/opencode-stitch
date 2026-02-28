@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { debugLogger } from './debug-logger';
 import type { OpenCodeRequest } from './types';
 

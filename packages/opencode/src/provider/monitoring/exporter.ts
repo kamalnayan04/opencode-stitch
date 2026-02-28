@@ -1,6 +1,6 @@
 
 import { TelemetryLogger } from '../robustness/telemetry';
-import { TelemetryEvent } from '../robustness/types';
+import type { TelemetryEvent } from '../robustness/types';
 
 /**
  * Interface for telemetry exporters.

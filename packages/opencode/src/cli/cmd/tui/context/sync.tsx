@@ -303,17 +303,17 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         case "message.part.delta": {
           // FIX: Add null safety for delta field
           const delta = event.properties.delta || '';
-          
-          flowLogger.ui('🖥️  TUI received message.part.delta event', {
+
+          flowLogger.uiReducer('🖥️  TUI received message.part.delta event', {
             messageID: event.properties.messageID,
             partID: event.properties.partID,
             field: event.properties.field,
             deltaLength: delta.length,
             eventType: 'message.part.delta'
           });
-          
+
           const parts = store.part[event.properties.messageID]
-          
+
           // FIX: Create part array if it doesn't exist
           if (!parts) {
             setStore("part", event.properties.messageID, [
@@ -327,9 +327,9 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             ])
             break
           }
-          
+
           const result = Binary.search(parts, event.properties.partID, (p) => p.id)
-          
+
           // FIX: Create part if it doesn't exist yet
           if (!result.found) {
             setStore(
@@ -347,7 +347,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
             )
             break
           }
-          
+
           // Existing code continues - append delta to existing part
           setStore(
             "part",
@@ -356,7 +356,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               const part = draft[result.index]
               const field = event.properties.field as keyof typeof part
               const existing = part[field] as string | undefined
-              ;(part[field] as string) = (existing ?? "") + delta
+                ; (part[field] as string) = (existing ?? "") + delta
             }),
           )
           break

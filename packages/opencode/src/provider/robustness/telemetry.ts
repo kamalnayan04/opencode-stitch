@@ -1,5 +1,5 @@
 
-import { TelemetryEvent, TelemetryMetrics } from './types';
+import type { TelemetryEvent, TelemetryMetrics } from './types';
 
 /**
  * Logger for robustness layer events.

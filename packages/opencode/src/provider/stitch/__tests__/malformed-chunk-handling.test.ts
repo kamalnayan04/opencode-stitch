@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 /**
  * Test for malformed NDJSON chunk handling

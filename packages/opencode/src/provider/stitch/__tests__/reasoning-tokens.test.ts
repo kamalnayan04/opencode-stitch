@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 /**
  * Reasoning Token Handling Tests

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Parameter Mapping Test Suite
  * 

@@ -1,5 +1,5 @@
 
-import { RecoveryConfig } from './types';
+import type { RecoveryConfig } from './types';
 
 export const AGGRESSIVE_RECOVERY: RecoveryConfig = {
   retry: {

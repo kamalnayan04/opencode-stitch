@@ -1,5 +1,5 @@
 
-import { SafeStitchResponse, SanitizationContext, ContentBlock } from './types';
+import type { SafeStitchResponse, SanitizationContext, ContentBlock } from './types';
 
 export const DEFAULT_CONTEXT: SanitizationContext = {
   maxContentLength: 1024 * 1024, // 1MB

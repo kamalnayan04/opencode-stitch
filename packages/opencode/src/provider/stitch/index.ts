@@ -40,8 +40,7 @@ export {
 
 export {
   StitchLanguageModel,
-  createStitch,
-  stitch
+  createStitch
 } from './provider';
 
 export type {

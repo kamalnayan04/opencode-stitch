@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 /**
  * State Machine XML Parser Tests

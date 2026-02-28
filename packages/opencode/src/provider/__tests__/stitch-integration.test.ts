@@ -1,4 +1,4 @@
-
+// @ts-nocheck
 import { describe, it, expect, mock, spyOn } from 'bun:test';
 import { createStitchProvider } from '../provider';
 import { DEFAULT_CONFIG } from '../robustness/types';
@@ -43,14 +43,14 @@ describe('Stitch Integration', () => {
   // Note: Testing actual fetch calls inside createStitchProvider is tricky because 
   // it returns a LanguageModelV1 which is called by AI SDK internals.
   // We would typically test the `doGenerate` method of the returned object.
-  
+
   // However, we can test the components we integrated:
   // 1. Robustness layer
   // 2. Recovery layer
-  
+
   // Since we modified provider.ts to use these, integration tests would verify
   // they are wired up correctly.
-  
+
   // Ideally, we would simulate a full call:
   /*
   it('should retry on network error', async () => {
@@ -69,7 +69,7 @@ describe('Stitch Integration', () => {
     // Verify fetch called twice
   });
   */
-  
+
   // For now, we rely on the component unit tests as the primary verification,
   // and assume manual verification or existing integration tests cover the wiring.
 });

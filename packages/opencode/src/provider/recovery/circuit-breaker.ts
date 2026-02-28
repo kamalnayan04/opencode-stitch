@@ -1,5 +1,5 @@
 
-import { CircuitBreakerConfig, CircuitState, CircuitBreakerState } from './types';
+import { CircuitState, type CircuitBreakerConfig, type CircuitBreakerState } from './types';
 import { TelemetryLogger } from '../robustness/telemetry';
 
 export const DEFAULT_CIRCUIT_CONFIG: CircuitBreakerConfig = {
@@ -19,14 +19,14 @@ export class CircuitBreaker {
   private openedAt: number | null = null;
   private halfOpenSuccessCount: number = 0;
   private telemetry: TelemetryLogger;
-  
+
   constructor(
     private config: CircuitBreakerConfig = DEFAULT_CIRCUIT_CONFIG,
     private name: string = 'stitch-api'
   ) {
     this.telemetry = TelemetryLogger.getInstance();
   }
-  
+
   /**
    * Executes an operation with circuit breaker protection.
    * 
@@ -38,12 +38,12 @@ export class CircuitBreaker {
     operation: () => Promise<T>,
     fallback: () => T
   ): Promise<T> {
-    
+
     // Check if circuit should transition to HALF_OPEN (timeout elapsed)
     if (this.state === CircuitState.OPEN && this.shouldAttemptReset()) {
       this.transitionToHalfOpen();
     }
-    
+
     // Circuit is OPEN - fail fast with fallback
     if (this.state === CircuitState.OPEN) {
       this.telemetry.log({
@@ -55,44 +55,44 @@ export class CircuitBreaker {
           recentFailures: this.failures.length
         }
       });
-      
+
       return fallback();
     }
-    
+
     // Circuit is CLOSED or HALF_OPEN - attempt operation
     try {
       const result = await operation();
-      
+
       // Success - reset or fully close circuit
       this.onSuccess();
-      
+
       return result;
-      
+
     } catch (error) {
       // Failure - record and potentially open circuit
       this.onFailure(error instanceof Error ? error : new Error(String(error)));
-      
+
       // If circuit just opened during this call, use fallback
-      if (this.state === CircuitState.OPEN) {
+      if ((this.state as any) === CircuitState.OPEN) {
         return fallback();
       }
-      
+
       // Otherwise, propagate error (likely for retry logic to handle)
       throw error;
     }
   }
-  
+
   private shouldAttemptReset(): boolean {
     if (!this.openedAt) return false;
-    
+
     const elapsedMs = Date.now() - this.openedAt;
     return elapsedMs >= this.config.openStateDurationMs;
   }
-  
+
   private transitionToHalfOpen(): void {
     this.state = CircuitState.HALF_OPEN;
     this.halfOpenSuccessCount = 0;
-    
+
     this.telemetry.log({
       eventType: 'circuit_breaker_half_open',
       severity: 'info',
@@ -102,18 +102,18 @@ export class CircuitBreaker {
       }
     });
   }
-  
+
   private onSuccess(): void {
     if (this.state === CircuitState.HALF_OPEN) {
       this.halfOpenSuccessCount++;
-      
+
       // Check if enough successes to fully close
       if (this.halfOpenSuccessCount >= this.config.halfOpenAttempts) {
         this.state = CircuitState.CLOSED;
         this.failures = [];
         this.openedAt = null;
         this.halfOpenSuccessCount = 0;
-        
+
         this.telemetry.log({
           eventType: 'circuit_breaker_closed',
           severity: 'info',
@@ -128,14 +128,14 @@ export class CircuitBreaker {
       this.cleanupOldFailures();
     }
   }
-  
+
   private onFailure(error: Error): void {
     const now = Date.now();
     this.failures.push({ timestamp: now, error });
-    
+
     // Clean up old failures outside window
     this.cleanupOldFailures();
-    
+
     // Check if threshold exceeded
     if (this.state === CircuitState.CLOSED) {
       if (this.failures.length >= this.config.failureThreshold) {
@@ -146,11 +146,11 @@ export class CircuitBreaker {
       this.tripCircuit();
     }
   }
-  
+
   private tripCircuit(): void {
     this.state = CircuitState.OPEN;
     this.openedAt = Date.now();
-    
+
     this.telemetry.log({
       eventType: 'circuit_breaker_opened',
       severity: 'critical',
@@ -161,13 +161,13 @@ export class CircuitBreaker {
       }
     });
   }
-  
+
   private cleanupOldFailures(): void {
     const cutoff = Date.now() - this.config.failureWindowMs;
     // Keep failures that happened within the window
     this.failures = this.failures.filter(f => f.timestamp > cutoff);
   }
-  
+
   /**
    * Get the current state of the circuit breaker.
    */

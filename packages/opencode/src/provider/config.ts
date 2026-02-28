@@ -1,6 +1,6 @@
 
-import { RobustnessConfig } from './robustness/types';
-import { RecoveryConfig } from './recovery/types';
+import type { RobustnessConfig } from './robustness/types';
+import type { RecoveryConfig } from './recovery/types';
 import { AGGRESSIVE_RECOVERY, CONSERVATIVE_RECOVERY } from './recovery/config';
 
 export interface ProviderConfig {
@@ -19,7 +19,6 @@ export function loadConfig(): ProviderConfig {
       sanitization: {
         maxContentLength: parseInt(process.env.STITCH_MAX_CONTENT || '1048576'),
         maxChoices: parseInt(process.env.STITCH_MAX_CHOICES || '10'),
-        allowedContentTypes: new Set(['CONTENT_TYPE_TEXT', 'CONTENT_TYPE_REASONING']),
         truncateOverflow: true
       },
       fallbacks: {

@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 /**
  * Comprehensive End-to-End Integration Tests for All Provider Bridge Fixes

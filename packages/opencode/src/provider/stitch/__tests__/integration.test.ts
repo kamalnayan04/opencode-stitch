@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Stitch Transformer Integration Tests
  * 

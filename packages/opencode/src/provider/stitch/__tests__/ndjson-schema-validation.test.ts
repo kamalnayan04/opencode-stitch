@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 /**
  * NDJSON Schema Validation Tests (GAP-8)

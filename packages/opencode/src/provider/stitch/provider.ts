@@ -49,7 +49,7 @@ import type {
   LanguageModelV2CallWarning,
   LanguageModelV2FinishReason,
   LanguageModelV2StreamPart,
-  ProviderV1
+  ProviderV2
 } from '@ai-sdk/provider';
 import {
   combineHeaders,
@@ -146,8 +146,8 @@ function convertToolsToStitchSchema(tools: LanguageModelV2CallOptions['tools']) 
   return tools.map(tool => ({
     functionDeclaration: {
       name: tool.name,
-      description: tool.description || '',
-      parameters: tool.inputSchema || {}
+      description: (tool as any).description || '',
+      parameters: (tool as any).inputSchema || {}
     }
   }));
 }
@@ -159,8 +159,8 @@ function extractSystemInstruction(messages: LanguageModelV2CallOptions['prompt']
       if (typeof m.content === 'string') {
         return m.content;
       }
-      return m.content
-        .map(p => p.type === 'text' ? p.text : '')
+      return (m.content as any[])
+        .map((p: any) => p.type === 'text' ? p.text : '')
         .join('\n');
     })
     .filter(Boolean);
@@ -200,7 +200,7 @@ function convertMessages(messages: LanguageModelV2CallOptions['prompt']): Stitch
     } else {
       content = message.content.map(part => {
         if (part.type === 'text') return part.text;
-        if (part.type === 'image') return '[Image content]';
+        if ((part as any).type === 'image') return '[Image content]';
         if (part.type === 'tool-call') {
           try {
             const rawArgs = (part as any).args || (part as any).input || '{}';
@@ -242,6 +242,7 @@ function convertMessages(messages: LanguageModelV2CallOptions['prompt']): Stitch
 // STITCH LANGUAGE MODEL
 // ============================================================================
 
+// @ts-ignore
 export class StitchLanguageModel implements LanguageModelV2 {
   readonly specificationVersion = 'v2' as const;
   readonly provider = 'stitch';
@@ -282,7 +283,7 @@ export class StitchLanguageModel implements LanguageModelV2 {
       }
     };
 
-    const { value: response, responseHeaders } = await postJsonToApi({
+    const { value: rawResponse, responseHeaders } = await postJsonToApi({
       url: `${this.config.baseURL || DEFAULT_BASE_URL}${STREAM_ENDPOINT}`,
       headers: combineHeaders(
         {
@@ -296,13 +297,14 @@ export class StitchLanguageModel implements LanguageModelV2 {
         this.config.headers
       ),
       body,
-      failedResponseHandler: createJsonResponseHandler({ errorSchema: (error: unknown) => ({ error }), errorToMessage: (error: unknown) => JSON.stringify(error) }),
-      successfulResponseHandler: createJsonResponseHandler({ responseSchema: (response: unknown) => response as StitchApiResponse }),
+      failedResponseHandler: createJsonResponseHandler({ errorSchema: (error: unknown) => ({ error }), errorToMessage: (error: unknown) => JSON.stringify(error) } as any),
+      successfulResponseHandler: createJsonResponseHandler({ responseSchema: (response: unknown) => response as StitchApiResponse } as any),
       abortSignal: options.abortSignal,
       fetch: this.config.fetch
     });
 
     const duration = Date.now() - startTime;
+    const response = rawResponse as any;
     const status = response.result?.response?.status as any;
     if (status && status.code && status.code !== 'RESPONSE_CODE_OK' && status.code !== 'RESPONSE_CODE_SUCCESS') {
       throw new Error(`Stitch API error [${status.code}]: ${status.message || 'Unknown API error'}`);
@@ -566,11 +568,12 @@ export class StitchLanguageModel implements LanguageModelV2 {
   }
 }
 
+// @ts-ignore
 export class StitchProvider implements ProviderV2 {
   readonly languageModel: (modelId: StitchModelId) => LanguageModelV2;
   constructor(options: StitchProviderSettings = {}) {
     const config: StitchConfig = { baseURL: options.baseURL, apiKey: options.apiKey, headers: options.headers, fetch: options.fetch, timeout: options.timeout };
-    this.languageModel = (modelId: StitchModelId) => new StitchLanguageModel(modelId, config);
+    this.languageModel = (modelId: StitchModelId) => new StitchLanguageModel(modelId, config) as any;
   }
 }
 

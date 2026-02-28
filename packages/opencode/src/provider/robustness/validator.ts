@@ -1,5 +1,5 @@
 
-import { ValidationResult, ValidationIssue } from './types';
+import type { ValidationResult, ValidationIssue } from './types';
 
 /**
  * Validates the structure and critical fields of a Stitch API response.

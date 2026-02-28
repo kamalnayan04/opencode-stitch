@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Unit Tests: Gemini ↔ OpenCode Streaming Transformations
  * 

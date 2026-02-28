@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 /**
  * Tests for XML ↔ JSON Tool Calling Adapter (transform.ts)

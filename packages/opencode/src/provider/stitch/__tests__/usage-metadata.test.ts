@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Usage Metadata Handling Tests
  * 

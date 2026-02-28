@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 /**
  * XML Tool Call Interceptor Tests

@@ -1,5 +1,5 @@
 
-import { FallbackOptions } from './types';
+import type { FallbackOptions } from './types';
 
 /**
  * Generates a fallback OpenAI-compatible response when an error occurs.

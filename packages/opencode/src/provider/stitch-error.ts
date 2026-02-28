@@ -64,10 +64,10 @@ export const STITCH_ERROR_CODES = {
  */
 function mapStitchErrorCode(code?: string): { message: string; suggestion: string } | undefined {
   if (!code) return undefined
-  
+
   const errorInfo = STITCH_ERROR_CODES[code as keyof typeof STITCH_ERROR_CODES]
   if (errorInfo) return errorInfo
-  
+
   // Return generic message for unknown codes
   return {
     message: `API error: ${code}`,
@@ -131,7 +131,7 @@ const HTTP_STATUS_GUIDANCE = {
 function getStatusGuidance(status: number): { message: string; suggestion: string } {
   const guidance = HTTP_STATUS_GUIDANCE[status as keyof typeof HTTP_STATUS_GUIDANCE]
   if (guidance) return guidance
-  
+
   // Default messages for unknown status codes
   if (status >= 500) {
     return {
@@ -144,7 +144,7 @@ function getStatusGuidance(status: number): { message: string; suggestion: strin
       suggestion: 'There was an issue with your request. Check the error details.'
     }
   }
-  
+
   return {
     message: `HTTP Error ${status}`,
     suggestion: 'An unexpected error occurred. Check the error details.'
@@ -232,12 +232,12 @@ export function isNetworkError(error: Error): boolean {
     'fetch failed',
     'failed to fetch'
   ]
-  
+
   const errorMessage = error.message?.toLowerCase() || ''
   const errorName = (error as any).code?.toLowerCase() || ''
-  
-  return networkErrors.some(pattern => 
-    errorMessage.includes(pattern.toLowerCase()) || 
+
+  return networkErrors.some(pattern =>
+    errorMessage.includes(pattern.toLowerCase()) ||
     errorName.includes(pattern.toLowerCase())
   )
 }
@@ -253,12 +253,12 @@ export function isTimeoutError(error: Error): boolean {
     'aborted',
     'AbortError'
   ]
-  
+
   const errorMessage = error.message?.toLowerCase() || ''
   const errorName = error.name?.toLowerCase() || ''
-  
-  return timeoutPatterns.some(pattern => 
-    errorMessage.includes(pattern.toLowerCase()) || 
+
+  return timeoutPatterns.some(pattern =>
+    errorMessage.includes(pattern.toLowerCase()) ||
     errorName.includes(pattern.toLowerCase())
   )
 }
@@ -268,19 +268,19 @@ export function isTimeoutError(error: Error): boolean {
  */
 export function parseStitchErrorResponse(response: Response, body: any): StitchError {
   const status = response.status
-  
+
   // Extract error details from Stitch response
   const errorData = body?.error || body
   const errorCode = errorData?.code
   const errorMessage = errorData?.message
   const errorDetails = errorData?.details
-  
+
   // Map Stitch-specific error codes first
   const stitchError = mapStitchErrorCode(errorCode)
-  
+
   // Get HTTP status guidance
   const statusGuidance = getStatusGuidance(status)
-  
+
   // Determine error type based on status code
   let type: StitchErrorType
   if (status === 401) {
@@ -292,7 +292,7 @@ export function parseStitchErrorResponse(response: Response, body: any): StitchE
   } else {
     type = 'api_error'
   }
-  
+
   // Build user-friendly message with priority:
   // 1. Stitch error code mapping (most specific)
   // 2. HTTP status guidance (generic but helpful)
@@ -303,7 +303,7 @@ export function parseStitchErrorResponse(response: Response, body: any): StitchE
   } else {
     userMessage = `${statusGuidance.message}\n\n${statusGuidance.suggestion}`
   }
-  
+
   return {
     type,
     message: userMessage,
@@ -338,7 +338,7 @@ export function createStitchError(
         details: additionalDetails
       }
     }
-    
+
     // Timeout errors
     if (isTimeoutError(error)) {
       return {
@@ -349,14 +349,14 @@ export function createStitchError(
         details: additionalDetails
       }
     }
-    
+
     // Get user-friendly guidance if we have a status code
     let finalMessage = error.message || 'An unknown error occurred'
     if (status) {
       const guidance = getStatusGuidance(status)
       finalMessage = `${guidance.message}\n\n${guidance.suggestion}`
     }
-    
+
     // Generic error
     return {
       type: additionalDetails?.type || 'api_error',
@@ -367,14 +367,14 @@ export function createStitchError(
       details: additionalDetails
     }
   }
-  
+
   // Handle non-Error objects
   let finalMessage = String(error) || 'An unknown error occurred'
   if (status) {
     const guidance = getStatusGuidance(status)
     finalMessage = `${guidance.message}\n\n${guidance.suggestion}`
   }
-  
+
   return {
     type: additionalDetails?.type || 'api_error',
     message: finalMessage,
@@ -392,10 +392,10 @@ export function calculateBackoffDelay(
   config: RetryConfig = DEFAULT_RETRY_CONFIG
 ): number {
   const delay = config.baseDelay * Math.pow(config.backoffMultiplier, attemptNumber - 1)
-  
+
   // Add jitter (±20% randomness) to prevent thundering herd
   const jitter = delay * 0.2 * (Math.random() * 2 - 1)
-  
+
   return Math.min(delay + jitter, config.maxDelay)
 }
 
@@ -415,7 +415,7 @@ export async function retryFetch<T>(
   context: string = 'request'
 ): Promise<T> {
   let lastError: StitchError | undefined
-  
+
   for (let attempt = 1; attempt <= config.maxRetries + 1; attempt++) {
     try {
       log.debug(`[${context}] Attempt ${attempt}/${config.maxRetries + 1}`)
@@ -427,41 +427,41 @@ export async function retryFetch<T>(
         'type' in error &&
         'message' in error &&
         'isRetryable' in error
-      
+
       // Use existing StitchError or convert to one
       const stitchError: StitchError = isStitchError
         ? error as StitchError
         : createStitchError(error)
-      
+
       lastError = stitchError
-      
+
       // Check if error is retryable
       if (!stitchError.isRetryable) {
-        log.error(`[${context}] Non-retryable error:`, stitchError.message)
+        log.error(`[${context}] Non-retryable error:`, { message: stitchError.message, error: stitchError })
         throw stitchError
       }
-      
+
       // Check if we have more retries left
       if (attempt > config.maxRetries) {
         log.error(`[${context}] Max retries (${config.maxRetries}) exceeded`)
         throw stitchError
       }
-      
+
       // Calculate backoff delay
       const retryDelay = stitchError.retryAfter
         ? stitchError.retryAfter * 1000
         : calculateBackoffDelay(attempt, config)
-      
+
       log.warn(
         `[${context}] Retryable error (attempt ${attempt}/${config.maxRetries + 1}): ${stitchError.message}. ` +
         `Retrying in ${Math.round(retryDelay)}ms...`
       )
-      
+
       // Wait before retry
       await sleep(retryDelay)
     }
   }
-  
+
   // This should never be reached, but TypeScript needs it
   throw lastError || new Error(`Retry failed with unknown error. Loop count: ${config.maxRetries + 1}`)
 }
@@ -474,20 +474,20 @@ export function createTimeoutController(
   existingSignal?: AbortSignal
 ): { controller: AbortController; cleanup: () => void } {
   const controller = new AbortController()
-  
+
   // Combine with existing signal if provided
   if (existingSignal) {
     existingSignal.addEventListener('abort', () => controller.abort())
   }
-  
+
   // Set timeout
   const timeoutId = setTimeout(() => {
     controller.abort(new Error(`Request timed out after ${timeoutMs}ms`))
   }, timeoutMs)
-  
+
   // Cleanup function to clear timeout
   const cleanup = () => clearTimeout(timeoutId)
-  
+
   return { controller, cleanup }
 }
 
@@ -510,24 +510,24 @@ export async function fetchWithErrorHandling(
     retryConfig = DEFAULT_RETRY_CONFIG,
     context = 'Stitch API'
   } = options
-  
+
   // Determine timeout based on request type
   const timeoutMs = isStreaming ? timeoutConfig.streaming : timeoutConfig.nonStreaming
-  
+
   // Create fetch function with timeout
   const fetchFn = async (): Promise<Response> => {
-    const { controller, cleanup } = createTimeoutController(timeoutMs, init?.signal)
-    
+    const { controller, cleanup } = createTimeoutController(timeoutMs, init?.signal as any)
+
     try {
       log.debug(`[${context}] Making request with ${timeoutMs}ms timeout`)
-      
+
       const response = await fetch(input, {
         ...init,
         signal: controller.signal
       })
-      
+
       cleanup()
-      
+
       // Check for HTTP errors
       if (!response.ok) {
         const responseBody = await response.text().catch(() => '')
@@ -538,25 +538,25 @@ export async function fetchWithErrorHandling(
           body = { message: responseBody }
         }
         const stitchError = parseStitchErrorResponse(response, body)
-        
+
         log.error(`[${context}] HTTP ${response.status}: ${stitchError.message}`)
         throw stitchError
       }
-      
+
       return response
     } catch (error) {
       cleanup()
-      
+
       // If it's already a StitchError, rethrow it
       if (error && typeof error === 'object' && 'type' in error) {
         throw error
       }
-      
+
       // Convert to StitchError
       throw createStitchError(error)
     }
   }
-  
+
   // Execute with retry logic
   return retryFetch(fetchFn, retryConfig, context)
 }
@@ -620,11 +620,11 @@ export function isStreamRecoverable(error: StitchError): boolean {
   if (error.type === 'rate_limit') return false
   if (error.status === 400) return false // Bad request
   if (error.status === 403) return false // Forbidden
-  
+
   // Recoverable errors (malformed chunk, network hiccup)
   if (error.type === 'streaming_error') return true
   if (error.type === 'validation_error') return true // Skip malformed chunk
-  
+
   return false
 }
 
@@ -646,7 +646,7 @@ export function handleStreamError(
   const stitchError: StitchError = error && typeof error === 'object' && 'type' in error
     ? error as StitchError
     : createStitchError(error)
-  
+
   // Create new error with buffer context (avoid mutating readonly properties)
   const enrichedError: StitchError = {
     ...stitchError,
@@ -656,9 +656,9 @@ export function handleStreamError(
       context: 'stream_error'
     }
   }
-  
+
   const shouldContinue = isStreamRecoverable(enrichedError)
-  
+
   if (!shouldContinue) {
     // Terminal error - return error response in SSE format
     const errorData = createErrorResponse(enrichedError)
@@ -667,7 +667,7 @@ export function handleStreamError(
       errorResponse: `data: ${JSON.stringify(errorData)}\n\ndata: [DONE]\n\n`
     }
   }
-  
+
   // Recoverable error - log and continue
   logError(enrichedError, { recoverable: true } as any)
   return {

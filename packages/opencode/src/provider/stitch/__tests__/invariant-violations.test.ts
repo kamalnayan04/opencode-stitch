@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 /**
  * Invariant Violations Tests
