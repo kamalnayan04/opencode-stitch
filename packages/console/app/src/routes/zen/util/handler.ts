@@ -835,6 +835,11 @@ export async function handler(
     authInfo = authInfo!
 
     const cost = centsToMicroCents(totalCostInCent)
+    // @ts-ignore - Type inference issue with Drizzle composite primary key
+    const workspaceIdCondition = eq(KeyTable.workspaceID, authInfo.workspaceID)
+    // @ts-ignore - Type inference issue with Drizzle composite primary key
+    const keyIdCondition = eq(KeyTable.id, authInfo.apiKeyId)
+    
     await Database.use((db) =>
       Promise.all([
         db.insert(UsageTable).values({
@@ -861,7 +866,7 @@ export async function handler(
         db
           .update(KeyTable)
           .set({ timeUsed: sql`now()` })
-          .where(and(eq(KeyTable.workspaceID, authInfo.workspaceID), eq(KeyTable.id, authInfo.apiKeyId) as any)),
+          .where(and(workspaceIdCondition, keyIdCondition)),
         ...(() => {
           if (billingSource === "subscription") {
             const plan = authInfo.billing.subscription!.plan
