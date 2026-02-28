@@ -27,8 +27,8 @@ function normalizeLineEndings(text: string): string {
 export const EditTool = Tool.define("edit", {
   description: DESCRIPTION,
   parameters: z.object({
-    filePath: z.string().describe("The absolute path to the file to modify"),
-    oldString: z.string().describe("The text to replace"),
+    filePath: z.string().min(1, 'File path cannot be empty').describe("The absolute path to the file to modify"),
+    oldString: z.string().min(1, 'Old string must not be empty. If you want to insert text, include enough surrounding context.').describe("The text to replace"),
     newString: z.string().describe("The text to replace it with (must be different from oldString)"),
     replaceAll: z.boolean().optional().describe("Replace all occurrences of oldString (default false)"),
   }),

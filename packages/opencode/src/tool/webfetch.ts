@@ -11,7 +11,7 @@ const MAX_TIMEOUT = 120 * 1000 // 2 minutes
 export const WebFetchTool = Tool.define("webfetch", {
   description: DESCRIPTION,
   parameters: z.object({
-    url: z.string().describe("The URL to fetch content from"),
+    url: z.string().min(1, 'URL cannot be empty').describe("The URL to fetch content from"),
     format: z
       .enum(["text", "markdown", "html"])
       .default("markdown")

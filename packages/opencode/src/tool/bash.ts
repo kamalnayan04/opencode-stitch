@@ -61,7 +61,7 @@ export const BashTool = Tool.define("bash", async () => {
       .replaceAll("${maxLines}", String(Truncate.MAX_LINES))
       .replaceAll("${maxBytes}", String(Truncate.MAX_BYTES)),
     parameters: z.object({
-      command: z.string().describe("The command to execute"),
+      command: z.string().min(1, 'Command cannot be empty').describe("The command to execute"),
       timeout: z.number().describe("Optional timeout in milliseconds").optional(),
       workdir: z
         .string()

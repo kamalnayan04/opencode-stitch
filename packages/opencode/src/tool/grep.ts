@@ -13,7 +13,7 @@ const MAX_LINE_LENGTH = 2000
 export const GrepTool = Tool.define("grep", {
   description: DESCRIPTION,
   parameters: z.object({
-    pattern: z.string().describe("The regex pattern to search for in file contents"),
+    pattern: z.string().min(1, 'Pattern cannot be empty').describe("The regex pattern to search for in file contents"),
     path: z.string().optional().describe("The directory to search in. Defaults to the current working directory."),
     include: z.string().optional().describe('File pattern to include in the search (e.g. "*.js", "*.{ts,tsx}")'),
   }),

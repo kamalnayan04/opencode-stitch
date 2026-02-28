@@ -43,7 +43,7 @@ export const WebSearchTool = Tool.define("websearch", async () => {
       return DESCRIPTION.replace("{{year}}", new Date().getFullYear().toString())
     },
     parameters: z.object({
-      query: z.string().describe("Websearch query"),
+      query: z.string().min(1, 'Query string cannot be empty').describe("Websearch query"),
       numResults: z.number().optional().describe("Number of search results to return (default: 8)"),
       livecrawl: z
         .enum(["fallback", "preferred"])

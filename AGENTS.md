@@ -1,113 +1,238 @@
-- To regenerate the JavaScript SDK, run `./packages/sdk/js/script/build.ts`.
-- ALWAYS USE PARALLEL TOOLS WHEN APPLICABLE.
-- The default branch in this repo is `dev`.
-- Local `main` ref may not exist; use `dev` or `origin/dev` for diffs.
-- Prefer automation: execute requested actions without confirmation unless blocked by missing info or safety/irreversibility.
+# OpenCode Development Guide for AI Agents
 
-## Style Guide
+This guide provides essential information for AI coding agents working in the OpenCode repository.
+
+## Project Overview
+
+- **Monorepo**: Managed with Turborepo and Bun workspaces
+- **Runtime**: Bun 1.3.9+ (required, enforced by pre-push hook)
+- **Default Branch**: `dev` (not `main`)
+- **Package Manager**: Bun (specified in `packageManager` field)
+
+## Build & Development Commands
+
+### Root Level (Monorepo)
+```bash
+bun install                    # Install all dependencies
+bun dev                        # Run opencode in packages/opencode directory
+bun dev <directory>            # Run opencode in specific directory
+bun dev .                      # Run opencode in repo root
+bun typecheck                  # Type check all packages (via Turbo)
+```
+
+### Package Level (packages/opencode)
+```bash
+cd packages/opencode
+bun dev                        # Start development server
+bun test                       # Run all tests (30s timeout)
+bun test <file>                # Run specific test file
+bun test --watch               # Run tests in watch mode
+bun typecheck                  # Type check this package only
+bun run build                  # Build the package
+bun run db generate --name <slug>  # Generate database migration
+```
+
+### Web UI (packages/app)
+```bash
+cd packages/app
+bun dev                        # Start Vite dev server
+bun test:unit                  # Run unit tests
+bun test:unit:watch            # Run unit tests in watch mode
+bun test:e2e                   # Run Playwright e2e tests
+bun test:e2e:ui                # Run e2e tests with UI
+bun typecheck                  # Type check
+```
+
+### SDK Generation
+```bash
+./packages/sdk/js/script/build.ts  # Regenerate JavaScript SDK
+```
+
+### Building Standalone Executable
+```bash
+./packages/opencode/script/build.ts --single  # Build localcode executable
+./packages/opencode/dist/opencode-<platform>/bin/opencode  # Run it
+```
+
+## Testing
+
+### Running Single Tests
+```bash
+# Run specific test file
+cd packages/opencode
+bun test test/ide/ide.test.ts
+
+# Run tests matching pattern
+bun test --test-name-pattern="should detect"
+
+# Run with custom timeout
+bun test --timeout 60000 test/snapshot/snapshot.test.ts
+```
+
+### Test Framework
+- **Framework**: Bun's built-in test runner
+- **Imports**: `import { describe, test, it, expect, afterEach, beforeEach } from "bun:test"`
+- **Location**: Tests in `test/` directory or `__tests__/` subdirectories
+- **Guard**: Tests CANNOT run from repo root (will fail with "do not run tests from root")
+
+### Test Principles
+- ✅ Test actual implementation, not mocks
+- ✅ Avoid mocks as much as possible
+- ✅ Do not duplicate logic into tests
+- ✅ Use real data and real flows
+
+## Code Style Guidelines
 
 ### General Principles
+- Keep code in one function unless composable or reusable
+- Avoid `try`/`catch` where possible (use error types instead)
+- Avoid `any` type - use proper typing
+- Prefer Bun APIs: `Bun.file()`, `Bun.$`, etc.
+- Rely on type inference - avoid explicit annotations unless for exports
+- Use functional array methods (`map`, `filter`, `flatMap`) over `for` loops
+- Use type guards on `filter` to maintain type inference
 
-- Keep things in one function unless composable or reusable
-- Avoid `try`/`catch` where possible
-- Avoid using the `any` type
-- Prefer single word variable names where possible
-- Use Bun APIs when possible, like `Bun.file()`
-- Rely on type inference when possible; avoid explicit type annotations or interfaces unless necessary for exports or clarity
-- Prefer functional array methods (flatMap, filter, map) over for loops; use type guards on filter to maintain type inference downstream
-
-### Naming
-
-Prefer single word names for variables and functions. Only use multiple words if necessary.
-
-```ts
-// Good
+### Naming Conventions
+```typescript
+// ✅ GOOD: Single word names
 const foo = 1
 function journal(dir: string) {}
+const user = getUser()
 
-// Bad
+// ❌ BAD: Multi-word names (only when necessary)
 const fooBar = 1
 function prepareJournal(dir: string) {}
-```
-
-Reduce total variable count by inlining when a value is only used once.
-
-```ts
-// Good
-const journal = await Bun.file(path.join(dir, "journal.json")).json()
-
-// Bad
-const journalPath = path.join(dir, "journal.json")
-const journal = await Bun.file(journalPath).json()
-```
-
-### Destructuring
-
-Avoid unnecessary destructuring. Use dot notation to preserve context.
-
-```ts
-// Good
-obj.a
-obj.b
-
-// Bad
-const { a, b } = obj
+const currentUser = getUser()
 ```
 
 ### Variables
-
-Prefer `const` over `let`. Use ternaries or early returns instead of reassignment.
-
-```ts
-// Good
+```typescript
+// ✅ GOOD: Prefer const, inline single-use values
+const journal = await Bun.file(path.join(dir, "journal.json")).json()
 const foo = condition ? 1 : 2
 
-// Bad
+// ❌ BAD: Unnecessary intermediate variables
+const journalPath = path.join(dir, "journal.json")
+const journal = await Bun.file(journalPath).json()
+
 let foo
 if (condition) foo = 1
 else foo = 2
 ```
 
+### Destructuring
+```typescript
+// ✅ GOOD: Use dot notation to preserve context
+obj.a
+obj.b
+config.timeout
+
+// ❌ BAD: Unnecessary destructuring loses context
+const { a, b } = obj
+const { timeout } = config
+```
+
 ### Control Flow
-
-Avoid `else` statements. Prefer early returns.
-
-```ts
-// Good
+```typescript
+// ✅ GOOD: Early returns, no else
 function foo() {
   if (condition) return 1
   return 2
 }
 
-// Bad
+function validate(input: string) {
+  if (!input) return false
+  if (input.length < 3) return false
+  return true
+}
+
+// ❌ BAD: else statements
 function foo() {
-  if (condition) return 1
-  else return 2
+  if (condition) {
+    return 1
+  } else {
+    return 2
+  }
 }
 ```
 
-### Schema Definitions (Drizzle)
+### Imports
+```typescript
+// Path aliases (tsconfig.json)
+import { Bus } from "@/bus"                    // @/* maps to ./src/*
+import { Component } from "@tui/*"             // @tui/* maps to ./src/cli/cmd/tui/*
 
-Use snake_case for field names so column names don't need to be redefined as strings.
+// External packages
+import z from "zod"
+import path from "path"
+import { spawn } from "bun"
 
-```ts
-// Good
-const table = sqliteTable("session", {
+// Workspace packages
+import { NamedError } from "@opencode-ai/util/error"
+import { Slug } from "@opencode-ai/util/slug"
+```
+
+### Exports (Namespace Pattern)
+```typescript
+// ✅ GOOD: Export namespace with functions
+export namespace Session {
+  export function create(input: CreateInput) {}
+  export function fork(sessionID: string) {}
+  export const Event = { /* ... */ }
+}
+
+// Usage
+import { Session } from "./session"
+Session.create({ ... })
+```
+
+### Error Handling
+```typescript
+// ✅ GOOD: Named errors with schema
+const NotFoundError = NamedError.create("NotFound", z.object({
+  resource: z.string()
+}))
+
+throw new NotFoundError({ resource: "session" })
+
+// ✅ GOOD: Early validation
+function process(id: string) {
+  if (!id) throw new Error("ID required")
+  // continue processing
+}
+
+// ❌ BAD: try/catch for control flow (avoid unless necessary)
+try {
+  const result = await operation()
+  return result
+} catch (e) {
+  return null
+}
+```
+
+## Database (Drizzle ORM)
+
+### Schema Definitions
+```typescript
+// ✅ GOOD: Use snake_case for columns (matches SQL conventions)
+const SessionTable = sqliteTable("session", {
   id: text().primaryKey(),
   project_id: text().notNull(),
   created_at: integer().notNull(),
+  time_initialized: integer(),
 })
 
-// Bad
-const table = sqliteTable("session", {
+// ❌ BAD: camelCase requires explicit column names
+const SessionTable = sqliteTable("session", {
   id: text("id").primaryKey(),
-  projectID: text("project_id").notNull(),
+  projectId: text("project_id").notNull(),  // Redundant
   createdAt: integer("created_at").notNull(),
 })
 ```
 
-## Testing
-
-- Avoid mocks as much as possible
-- Test actual implementation, do not duplicate logic into tests
-- Tests cannot run from repo root (guard: `do-not-run-tests-from-root`); run from package dirs like `packages/opencode`.
+### Migrations
+- **Schema Location**: `./src/**/*.sql.ts`
+- **Output Directory**: `./migration`
+- **Generate Migration**: `bun run db generate --name <slug>`
+- **Output Format**: `migration/<timestamp>_<slug>/migration.sql` + `snapshot.json`
+- **Naming**: Tables/columns use `snake_case`, join columns are `<entity>_id`, indexes are `<table>_<column

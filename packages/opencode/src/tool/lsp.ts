@@ -24,7 +24,7 @@ export const LspTool = Tool.define("lsp", {
   description: DESCRIPTION,
   parameters: z.object({
     operation: z.enum(operations).describe("The LSP operation to perform"),
-    filePath: z.string().describe("The absolute or relative path to the file"),
+    filePath: z.string().min(1, 'File path cannot be empty').describe("The absolute or relative path to the file"),
     line: z.number().int().min(1).describe("The line number (1-based, as shown in editors)"),
     character: z.number().int().min(1).describe("The character offset (1-based, as shown in editors)"),
   }),
