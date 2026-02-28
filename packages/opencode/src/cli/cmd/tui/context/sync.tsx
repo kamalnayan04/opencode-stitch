@@ -28,6 +28,7 @@ import { useArgs } from "./args"
 import { batch, onMount } from "solid-js"
 import { Log } from "@/util/log"
 import type { Path } from "@opencode-ai/sdk"
+import { flowLogger } from "../../../../shared/debug-logger"
 
 export const { use: useSync, provider: SyncProvider } = createSimpleContext({
   name: "Sync",
@@ -300,10 +301,54 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         }
 
         case "message.part.delta": {
+          // FIX: Add null safety for delta field
+          const delta = event.properties.delta || '';
+          
+          flowLogger.ui('🖥️  TUI received message.part.delta event', {
+            messageID: event.properties.messageID,
+            partID: event.properties.partID,
+            field: event.properties.field,
+            deltaLength: delta.length,
+            eventType: 'message.part.delta'
+          });
+          
           const parts = store.part[event.properties.messageID]
-          if (!parts) break
+          
+          // FIX: Create part array if it doesn't exist
+          if (!parts) {
+            setStore("part", event.properties.messageID, [
+              {
+                id: event.properties.partID,
+                type: "text",
+                text: delta,
+                messageID: event.properties.messageID,
+                sessionID: ""
+              } as Part
+            ])
+            break
+          }
+          
           const result = Binary.search(parts, event.properties.partID, (p) => p.id)
-          if (!result.found) break
+          
+          // FIX: Create part if it doesn't exist yet
+          if (!result.found) {
+            setStore(
+              "part",
+              event.properties.messageID,
+              produce((draft) => {
+                draft.splice(result.index, 0, {
+                  id: event.properties.partID,
+                  type: "text",
+                  text: delta,
+                  messageID: event.properties.messageID,
+                  sessionID: ""
+                } as Part)
+              }),
+            )
+            break
+          }
+          
+          // Existing code continues - append delta to existing part
           setStore(
             "part",
             event.properties.messageID,
@@ -311,7 +356,7 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
               const part = draft[result.index]
               const field = event.properties.field as keyof typeof part
               const existing = part[field] as string | undefined
-              ;(part[field] as string) = (existing ?? "") + event.properties.delta
+              ;(part[field] as string) = (existing ?? "") + delta
             }),
           )
           break

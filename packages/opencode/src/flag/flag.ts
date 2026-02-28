@@ -54,6 +54,10 @@ export namespace Flag {
   export const OPENCODE_EXPERIMENTAL_MARKDOWN = truthy("OPENCODE_EXPERIMENTAL_MARKDOWN")
   export const OPENCODE_MODELS_URL = process.env["OPENCODE_MODELS_URL"]
   export const OPENCODE_MODELS_PATH = process.env["OPENCODE_MODELS_PATH"]
+  
+  // Native Stitch Provider (replaces OpenAI SSE spoofing)
+  // Default: true for local testing, can be disabled with OPENCODE_USE_NATIVE_STITCH_PROVIDER=false
+  export const OPENCODE_USE_NATIVE_STITCH_PROVIDER = process.env["OPENCODE_USE_NATIVE_STITCH_PROVIDER"] === "false" ? false : true
 
   function number(key: string) {
     const value = process.env[key]

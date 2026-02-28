@@ -15,6 +15,8 @@ import { Config } from "@/config/config"
 import { SessionCompaction } from "./compaction"
 import { PermissionNext } from "@/permission/next"
 import { Question } from "@/question"
+import { logger } from "@/shared/logger"
+import { flowLogger } from "@/shared/debug-logger"
 
 export namespace SessionProcessor {
   const DOOM_LOOP_THRESHOLD = 3
@@ -44,22 +46,51 @@ export namespace SessionProcessor {
       },
       async process(streamInput: LLM.StreamInput) {
         log.info("process")
+        const correlationId = `proc-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const scopedLogger = logger.withCorrelationId(correlationId);
+
         needsCompaction = false
         const shouldBreak = (await Config.get()).experimental?.continue_loop_on_deny !== true
         while (true) {
           try {
             let currentText: MessageV2.TextPart | undefined
             let reasoningMap: Record<string, MessageV2.ReasoningPart> = {}
+
+            scopedLogger.info('🎯 Calling LLM.stream()');
             const stream = await LLM.stream(streamInput)
+            scopedLogger.info('✅ LLM.stream() returned, starting fullStream consumption');
+
+            flowLogger.consumer('🎯 Starting stream consumption', {
+              sessionId: input.sessionID,
+              messageId: input.assistantMessage.id
+            });
+
+            let eventCount = 0;
 
             for await (const value of stream.fullStream) {
+              eventCount++;
+              scopedLogger.debug('📥 CONSUMER RECEIVED EVENT', {
+                eventNumber: eventCount,
+                type: value.type,
+                hasId: 'id' in value ? (value as any).id : undefined,
+                keys: Object.keys(value)
+              });
+
+              flowLogger.consumer('📥 Event received from provider', {
+                type: value.type,
+                partId: 'id' in value ? (value as any).id : undefined,
+                deltaPreview: value.type === 'text-delta' ? (value as any).delta?.substring(0, 50) : undefined
+              });
+
               input.abort.throwIfAborted()
               switch (value.type) {
                 case "start":
+                  scopedLogger.info('🎬 Stream START event received');
                   SessionStatus.set(input.sessionID, { type: "busy" })
                   break
 
                 case "reasoning-start":
+                  scopedLogger.debug('🧠 Reasoning-start event', { id: value.id });
                   if (value.id in reasoningMap) {
                     continue
                   }
@@ -109,6 +140,10 @@ export namespace SessionProcessor {
                   break
 
                 case "tool-input-start":
+                  scopedLogger.debug('🔧 Tool-input-start event', {
+                    toolName: value.toolName,
+                    toolCallId: value.id
+                  });
                   const part = await Session.updatePart({
                     id: toolcalls[value.id]?.id ?? Identifier.ascending("part"),
                     messageID: input.assistantMessage.id,
@@ -132,6 +167,10 @@ export namespace SessionProcessor {
                   break
 
                 case "tool-call": {
+                  scopedLogger.info('🔨 Tool-call event', {
+                    toolName: value.toolName,
+                    toolCallId: value.toolCallId
+                  });
                   const match = toolcalls[value.toolCallId]
                   if (match) {
                     const part = await Session.updatePart({
@@ -285,6 +324,15 @@ export namespace SessionProcessor {
                   break
 
                 case "text-start":
+                  scopedLogger.info('📝 TEXT-START event received', {
+                    id: (value as any).id
+                  });
+
+                  flowLogger.consumer('📝 Processing text-start', {
+                    partId: Identifier.ascending("part"),
+                    messageId: input.assistantMessage.id
+                  });
+
                   currentText = {
                     id: Identifier.ascending("part"),
                     messageID: input.assistantMessage.id,
@@ -297,23 +345,61 @@ export namespace SessionProcessor {
                     metadata: value.providerMetadata,
                   }
                   await Session.updatePart(currentText)
+                  scopedLogger.debug('✅ Text part created and saved', {
+                    partId: currentText.id
+                  });
                   break
 
                 case "text-delta":
+                  // FIX: Handle textDelta (new Vercel AI SDK), delta (legacy), and text (sdk wrapper fallback) fields
+                  const deltaText = (value as any).textDelta || (value as any).text || (value as any).delta || '';
+
+                  scopedLogger.debug('💬 TEXT-DELTA event received', {
+                    hasCurrentText: !!currentText,
+                    delta: deltaText.substring(0, 50),
+                    deltaLength: deltaText.length
+                  });
                   if (currentText) {
-                    currentText.text += value.text
-                    if (value.providerMetadata) currentText.metadata = value.providerMetadata
-                    await Session.updatePartDelta({
-                      sessionID: currentText.sessionID,
-                      messageID: currentText.messageID,
-                      partID: currentText.id,
-                      field: "text",
-                      delta: value.text,
-                    })
+                    if (deltaText) {
+                      currentText.text += deltaText
+                      if (value.providerMetadata) currentText.metadata = value.providerMetadata
+
+                      flowLogger.consumer('💬 Processing text-delta', {
+                        partId: currentText.id,
+                        deltaLength: deltaText.length,
+                        totalLength: currentText.text.length,
+                        preview: currentText.text.substring(0, 100)
+                      });
+
+                      flowLogger.consumer('📢 Publishing delta to event bus', {
+                        messageId: currentText.messageID,
+                        partId: currentText.id,
+                        deltaLength: deltaText.length
+                      });
+
+                      await Session.updatePartDelta({
+                        sessionID: currentText.sessionID,
+                        messageID: currentText.messageID,
+                        partID: currentText.id,
+                        field: "text",
+                        delta: deltaText,
+                      })
+                      scopedLogger.debug('✅ Delta applied, total text length', {
+                        totalLength: currentText.text.length
+                      });
+                    } else {
+                      scopedLogger.warn('⚠️  text-delta received but delta field is empty');
+                    }
+                  } else {
+                    scopedLogger.error('❌ text-delta received but currentText is undefined!');
                   }
                   break
 
                 case "text-end":
+                  scopedLogger.info('🏁 TEXT-END event received', {
+                    hasCurrentText: !!currentText,
+                    finalTextLength: currentText?.text.length || 0
+                  });
                   if (currentText) {
                     currentText.text = currentText.text.trimEnd()
                     const textOutput = await Plugin.trigger(
@@ -337,9 +423,17 @@ export namespace SessionProcessor {
                   break
 
                 case "finish":
+                  scopedLogger.info('🎉 FINISH event received', {
+                    finishReason: value.finishReason,
+                    hasUsage: !!(value as any).usage
+                  });
                   break
 
                 default:
+                  scopedLogger.warn('⚠️  Unhandled event type', {
+                    type: value.type,
+                    keys: Object.keys(value)
+                  });
                   log.info("unhandled", {
                     ...value,
                   })
@@ -347,6 +441,11 @@ export namespace SessionProcessor {
               }
               if (needsCompaction) break
             }
+
+            scopedLogger.info('🔚 Stream consumption complete', {
+              eventCount,
+              hadError: false
+            });
           } catch (e: any) {
             log.error("process", {
               error: e,
@@ -366,7 +465,7 @@ export namespace SessionProcessor {
                 message: retry,
                 next: Date.now() + delay,
               })
-              await SessionRetry.sleep(delay, input.abort).catch(() => {})
+              await SessionRetry.sleep(delay, input.abort).catch(() => { })
               continue
             }
             input.assistantMessage.error = error

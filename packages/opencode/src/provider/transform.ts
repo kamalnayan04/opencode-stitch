@@ -330,6 +330,22 @@ export namespace ProviderTransform {
   const OPENAI_EFFORTS = ["none", "minimal", ...WIDELY_SUPPORTED_EFFORTS, "xhigh"]
 
   export function variants(model: Provider.Model): Record<string, Record<string, any>> {
+    // Check for Stitch provider FIRST (before reasoning check)
+    // Stitch uses token-based variants instead of reasoning effort, so it should work
+    // regardless of the reasoning capability setting
+    //
+    // FIXED: Check providerID instead of URL, since api.url can be undefined
+    // The URL check was failing because Stitch models have api.url = undefined
+    if (model.providerID === "stitch" || model.api?.url?.includes("/inference-service")) {
+      return {
+        low: { maxTokens: 2048 },
+        medium: { maxTokens: 8192 },
+        high: { maxTokens: 16384 },
+        extrahigh: { maxTokens: 32000 }
+      }
+    }
+
+    // Now check reasoning capability for other providers
     if (!model.capabilities.reasoning) return {}
 
     const id = model.id.toLowerCase()
@@ -464,6 +480,7 @@ export namespace ProviderTransform {
       case "venice-ai-sdk-provider":
       // https://docs.venice.ai/overview/guides/reasoning-models#reasoning-effort
       case "@ai-sdk/openai-compatible":
+        // Note: Stitch provider (with /inference-service URL) is handled at the top of the function
         return Object.fromEntries(WIDELY_SUPPORTED_EFFORTS.map((effort) => [effort, { reasoningEffort: effort }]))
 
       case "@ai-sdk/azure":

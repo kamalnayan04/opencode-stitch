@@ -28,6 +28,7 @@ import { PermissionNext } from "@/permission/next"
 import { Global } from "@/global"
 import type { LanguageModelV2Usage } from "@ai-sdk/provider"
 import { iife } from "@/util/iife"
+import { flowLogger } from "@/shared/debug-logger"
 
 export namespace Session {
   const log = Log.create({ service: "session" })
@@ -764,6 +765,17 @@ export namespace Session {
       delta: z.string(),
     }),
     async (input) => {
+      // FIX: Add defensive null safety for delta field
+      const delta = input.delta || '';
+      
+      flowLogger.eventBus('📡 Publishing message.part.delta event', {
+        messageID: input.messageID,
+        partID: input.partID,
+        field: input.field,
+        deltaLength: delta.length,
+        eventType: 'message.part.delta'
+      });
+      
       Bus.publish(MessageV2.Event.PartDelta, input)
     },
   )

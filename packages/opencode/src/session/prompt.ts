@@ -195,41 +195,46 @@ export namespace SessionPrompt {
     const seen = new Set<string>()
     await Promise.all(
       files.map(async (match) => {
-        const name = match[1]
-        if (seen.has(name)) return
-        seen.add(name)
-        const filepath = name.startsWith("~/")
-          ? path.join(os.homedir(), name.slice(2))
-          : path.resolve(Instance.worktree, name)
+        try {
+          const name = match[1]
+          if (seen.has(name)) return
+          seen.add(name)
+          const filepath = name.startsWith("~/")
+            ? path.join(os.homedir(), name.slice(2))
+            : path.resolve(Instance.worktree, name)
 
-        const stats = await fs.stat(filepath).catch(() => undefined)
-        if (!stats) {
-          const agent = await Agent.get(name)
-          if (agent) {
-            parts.push({
-              type: "agent",
-              name: agent.name,
-            })
+          const stats = await fs.stat(filepath).catch(() => undefined)
+          if (!stats) {
+            const agent = await Agent.get(name)
+            if (agent && agent.name) {
+              parts.push({
+                type: "agent",
+                name: agent.name,
+              })
+            }
+            return
           }
-          return
-        }
 
-        if (stats.isDirectory()) {
+          if (stats.isDirectory()) {
+            parts.push({
+              type: "file",
+              url: pathToFileURL(filepath).href,
+              filename: name,
+              mime: "application/x-directory",
+            })
+            return
+          }
+
           parts.push({
             type: "file",
             url: pathToFileURL(filepath).href,
             filename: name,
-            mime: "application/x-directory",
+            mime: "text/plain",
           })
-          return
+        } catch (error) {
+          // Silently ignore file processing errors - don't crash the stream
+          log.warn("Failed to process file reference", { error, match })
         }
-
-        parts.push({
-          type: "file",
-          url: pathToFileURL(filepath).href,
-          filename: name,
-          mime: "text/plain",
-        })
       }),
     )
     return parts

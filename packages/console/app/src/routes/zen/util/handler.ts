@@ -17,6 +17,7 @@ import { ProviderTable } from "@opencode-ai/console-core/schema/provider.sql.js"
 import { logger } from "./logger"
 import {
   AuthError,
+  OAuthError,
   CreditsError,
   MonthlyLimitError,
   UserLimitError,
@@ -24,6 +25,8 @@ import {
   FreeUsageLimitError,
   SubscriptionUsageLimitError,
 } from "./error"
+import { isOAuthToken } from "./oauth-validator"
+import { authenticateWithOAuth } from "./stitch-auth"
 import { createBodyConverter, createStreamPartConverter, createResponseConverter, UsageInfo } from "./provider/provider"
 import { anthropicHelper } from "./provider/anthropic"
 import { googleHelper } from "./provider/google"
@@ -441,6 +444,18 @@ export async function handler(
       if (modelInfo.allowAnonymous) return
       throw new AuthError("Missing API key.")
     }
+
+    // Check if this is an OAuth token (JWT format)
+    if (isOAuthToken(apiKey)) {
+      try {
+        return await authenticateWithOAuth(apiKey, input.request.headers)
+      } catch (error) {
+        if (error instanceof AuthError) throw error
+        throw new OAuthError(`OAuth authentication failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      }
+    }
+
+    // Continue with existing API key authentication
 
     const data = await Database.use((tx) =>
       tx

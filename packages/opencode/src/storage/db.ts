@@ -70,9 +70,19 @@ export namespace Database {
   }
 
   export const Client = lazy(() => {
-    log.info("opening database", { path: path.join(Global.Path.data, "opencode.db") })
+    const dbPath = path.join(Global.Path.data, "opencode.db")
+    log.info("opening database", { path: dbPath })
+    
+    // LOG: Check if data directory exists before opening database
+    const { existsSync } = require("fs")
+    const dirExists = existsSync(Global.Path.data)
+    log.info("database directory check", {
+      dataPath: Global.Path.data,
+      exists: dirExists,
+      willCreate: !dirExists
+    })
 
-    const sqlite = new BunDatabase(path.join(Global.Path.data, "opencode.db"), { create: true })
+    const sqlite = new BunDatabase(dbPath, { create: true })
     state.sqlite = sqlite
 
     sqlite.run("PRAGMA journal_mode = WAL")

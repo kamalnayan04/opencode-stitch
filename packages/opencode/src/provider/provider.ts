@@ -44,9 +44,49 @@ import { fromNodeProviderChain } from "@aws-sdk/credential-providers"
 import { GoogleAuth } from "google-auth-library"
 import { ProviderTransform } from "./transform"
 import { Installation } from "../installation"
+// Import Gemini transformer for format conversion support
+import * as GeminiTransformer from "./gemini"
+// Import native Stitch provider
+import { createStitch } from "./stitch/provider"
+import {
+  fetchWithErrorHandling,
+  createStitchError,
+  createErrorResponse,
+  logError,
+  createTimeoutController,
+  isRetryableStatusCode,
+  handleStreamError,
+  isStreamRecoverable,
+  createStreamErrorResponse,
+  DEFAULT_TIMEOUT_CONFIG,
+  DEFAULT_RETRY_CONFIG,
+  type StitchError,
+  type RetryConfig,
+  type TimeoutConfig,
+} from "./stitch-error"
+import { createRobustnessLayer } from './robustness';
+import { CircuitBreaker } from './recovery/circuit-breaker';
+import { withRetry } from './recovery/retry';
+import { classifyError } from './recovery/error-classifier';
+import { loadConfig } from './config';
+import { validateStitchRequest } from "./stitch-validation"
 
 export namespace Provider {
   const log = Log.create({ service: "provider" })
+  const isDebug = process.env.STITCH_DEBUG === 'true'
+
+  function getChunkType(parsed: any): string {
+    if (parsed.type) return parsed.type;
+    if (parsed.result?.response?.choices?.[0]?.finish_reason) return parsed.result.response.choices[0].finish_reason;
+    if (parsed.error || parsed.result?.error) return 'error';
+    if (parsed.result?.response) return 'response_chunk';
+    return 'unknown';
+  }
+
+  // Initialize robustness and recovery layers
+  const providerConfig = loadConfig()
+  const robustnessLayer = createRobustnessLayer(providerConfig.robustness)
+  const stitchCircuitBreaker = new CircuitBreaker(providerConfig.recovery.circuitBreaker, 'stitch-api')
 
   function isGpt5OrLater(modelID: string): boolean {
     const match = /^gpt-(\d+)/.exec(modelID)
@@ -107,6 +147,16 @@ export namespace Provider {
     "@gitlab/gitlab-ai-provider": createGitLab,
     // @ts-ignore (TODO: kill this code so we dont have to maintain it)
     "@ai-sdk/github-copilot": createGitHubCopilotOpenAICompatible,
+    // Native Stitch provider (enabled via OPENCODE_USE_NATIVE_STITCH_PROVIDER=true)
+    // FIXED: Changed from "@opencode/stitch" to "stitch" to match custom loader registration
+    ...(Flag.OPENCODE_USE_NATIVE_STITCH_PROVIDER ? { "stitch": createStitch } : {}),
+  }
+
+  // Log provider registration for debugging
+  console.error('[PROVIDER DEBUG] Registering providers:', Object.keys(BUNDLED_PROVIDERS))
+  console.error('[PROVIDER DEBUG] Native Stitch enabled:', Flag.OPENCODE_USE_NATIVE_STITCH_PROVIDER)
+  if (Flag.OPENCODE_USE_NATIVE_STITCH_PROVIDER) {
+    console.error('[PROVIDER DEBUG] Native Stitch provider registered as "stitch"')
   }
 
   type CustomModelLoader = (sdk: any, modelID: string, options?: Record<string, any>) => Promise<any>
@@ -426,6 +476,61 @@ export namespace Provider {
         async getModel(sdk: any, modelID) {
           const id = String(modelID).trim()
           return sdk.languageModel(id)
+        },
+      }
+    },
+    "google-gemini": async (provider) => {
+      // Custom loader for Google Gemini with transformation support
+      const apiKey = await (async () => {
+        const envKey = Env.get("GOOGLE_API_KEY") ?? Env.get("GEMINI_API_KEY")
+        if (envKey) return envKey
+        const auth = await Auth.get(provider.id)
+        if (auth?.type === "api") return auth.key
+        return undefined
+      })()
+      
+      if (!apiKey) return { autoload: false }
+      
+      return {
+        autoload: true,
+        options: {
+          apiKey,
+          // Enable Gemini transformer capabilities
+          headers: {
+            "X-Goog-Api-Client": "opencode-gemini-transformer/1.0.0",
+          },
+        },
+        async getModel(sdk: any, modelID: string) {
+          // Normalize model ID (remove "models/" prefix if present)
+          const normalizedId = GeminiTransformer.normalizeGeminiModelId(modelID)
+          return sdk.languageModel(normalizedId)
+        },
+      }
+    },
+    stitch: async (provider) => {
+      // Custom loader for native Stitch provider
+      const apiKey = await (async () => {
+        const envKey = Env.get("STITCH_API_KEY")
+        if (envKey) return envKey
+        const auth = await Auth.get(provider.id)
+        if (auth?.type === "api") return auth.key
+        const config = await Config.get()
+        return config.provider?.["stitch"]?.options?.apiKey
+      })()
+      
+      const baseURL = Env.get("STITCH_API_URL") || process.env.STITCH_API_URL
+      
+      return {
+        autoload: !!apiKey || !!baseURL,
+        options: {
+          apiKey,
+          baseURL,
+          headers: {
+            "X-Opencode-Client": "opencode-native-provider/2.0.0",
+          },
+        },
+        async getModel(sdk: any, modelID: string) {
+          return sdk.languageModel(modelID)
         },
       }
     },
@@ -1066,12 +1171,25 @@ export namespace Provider {
 
       const key = Bun.hash.xxHash32(JSON.stringify({ providerID: model.providerID, npm: model.api.npm, options }))
       const existing = s.sdk.get(key)
-      if (existing) return existing
+      if (existing) {
+        if (isDebug) console.log(`[STITCH-DEBUG] Using existing SDK for provider: ${model.providerID}`)
+        return existing
+      }
+
+      if (isDebug) {
+        console.log(`[STITCH-DEBUG] Initializing new SDK for provider: ${model.providerID}`)
+        console.log(`[STITCH-DEBUG] Provider details:`, {
+          providerID: model.providerID,
+          npm: model.api.npm,
+          baseURL: options["baseURL"],
+          hasApiKey: !!options["apiKey"],
+          timeout: options["timeout"]
+        })
+      }
 
       const customFetch = options["fetch"]
 
       options["fetch"] = async (input: any, init?: BunFetchRequestInit) => {
-        // Preserve custom fetch if it exists, wrap it with timeout logic
         const fetchFn = customFetch ?? fetch
         const opts = init ?? {}
 
@@ -1081,14 +1199,10 @@ export namespace Provider {
           if (options["timeout"] !== false) signals.push(AbortSignal.timeout(options["timeout"]))
 
           const combined = signals.length > 1 ? AbortSignal.any(signals) : signals[0]
-
           opts.signal = combined
         }
 
         // Strip openai itemId metadata following what codex does
-        // Codex uses #[serde(skip_serializing)] on id fields for all item types:
-        // Message, Reasoning, FunctionCall, LocalShellCall, CustomToolCall, WebSearchCall
-        // IDs are only re-attached for Azure with store=true
         if (model.api.npm === "@ai-sdk/openai" && opts.body && opts.method === "POST") {
           const body = JSON.parse(opts.body as string)
           const isAzure = model.providerID.includes("azure")
@@ -1110,15 +1224,48 @@ export namespace Provider {
         })
       }
 
-      const bundledFn = BUNDLED_PROVIDERS[model.api.npm]
+      // Prefer native provider (providerID) over compatibility layer (api.npm)
+      const bundledFn = BUNDLED_PROVIDERS[model.providerID] || BUNDLED_PROVIDERS[model.api.npm]
+      
+      // Log provider lookup for debugging
+      if (model.providerID === "stitch" || model.api.npm === "stitch") {
+        console.error('[PROVIDER DEBUG] Looking up Stitch provider:')
+        console.error('[PROVIDER DEBUG]   model.providerID:', model.providerID)
+        console.error('[PROVIDER DEBUG]   model.api.npm:', model.api.npm)
+        console.error('[PROVIDER DEBUG]   bundledFn from api.npm:', !!BUNDLED_PROVIDERS[model.api.npm])
+        console.error('[PROVIDER DEBUG]   bundledFn from providerID:', !!BUNDLED_PROVIDERS[model.providerID])
+        console.error('[PROVIDER DEBUG]   Using:',
+          BUNDLED_PROVIDERS[model.providerID] ? `native provider (${model.providerID})` :
+          BUNDLED_PROVIDERS[model.api.npm] ? `compat layer (${model.api.npm})` :
+          'fallback')
+        console.error('[PROVIDER DEBUG]   Available providers:', Object.keys(BUNDLED_PROVIDERS))
+      }
+      
       if (bundledFn) {
         log.info("using bundled provider", { providerID: model.providerID, pkg: model.api.npm })
-        const loaded = bundledFn({
-          name: model.providerID,
-          ...options,
-        })
-        s.sdk.set(key, loaded)
-        return loaded as SDK
+        if (isDebug) {
+          console.log(`[STITCH-DEBUG] Creating bundled provider for: ${model.providerID}`)
+          console.log(`[STITCH-DEBUG] Provider options:`, {
+            name: model.providerID,
+            baseURL: options["baseURL"],
+            hasApiKey: !!options["apiKey"],
+            hasFetch: !!options["fetch"],
+            timeout: options["timeout"]
+          })
+        }
+        
+        try {
+          const loaded = bundledFn({
+            name: model.providerID,
+            ...options,
+          })
+          if (isDebug) console.log(`[STITCH-DEBUG] Bundled provider created successfully for: ${model.providerID}`)
+          s.sdk.set(key, loaded)
+          return loaded as SDK
+        } catch (error) {
+          if (isDebug) console.error(`[STITCH-DEBUG] Error creating bundled provider:`, error)
+          throw error
+        }
       }
 
       let installedPath: string

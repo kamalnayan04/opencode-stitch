@@ -23,7 +23,10 @@ type Usage = {
 
 export const oaCompatHelper: ProviderHelper = () => ({
   format: "oa-compat",
-  modifyUrl: (providerApi: string) => providerApi + "/chat/completions",
+  modifyUrl: (providerApi: string) => {
+    if (providerApi.endsWith("/inference-service")) return providerApi + "/stream-chat-completion"
+    return providerApi + "/chat/completions"
+  },
   modifyHeaders: (headers: Headers, body: Record<string, any>, apiKey: string) => {
     headers.set("authorization", `Bearer ${apiKey}`)
     headers.set("x-session-affinity", headers.get("x-opencode-session") ?? "")

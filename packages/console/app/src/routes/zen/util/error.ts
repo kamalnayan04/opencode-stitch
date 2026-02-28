@@ -1,4 +1,5 @@
 export class AuthError extends Error {}
+export class OAuthError extends Error {}
 export class CreditsError extends Error {}
 export class MonthlyLimitError extends Error {}
 export class UserLimitError extends Error {}

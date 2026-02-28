@@ -69,7 +69,8 @@ export function createOpenaiCompatible(options: OpenaiCompatibleProviderSettings
     return new OpenAICompatibleChatLanguageModel(modelId, {
       provider: `${options.name ?? "openai-compatible"}.chat`,
       headers: getHeaders,
-      url: ({ path }) => `${baseURL}${path}`,
+      // If baseURL contains 'inference' or ends with 'completions', treat it as complete endpoint
+      url: ({ path }) => (baseURL.includes('inference') || baseURL.endsWith('completions')) ? baseURL : `${baseURL}${path}`,
       fetch: options.fetch,
     })
   }
@@ -78,7 +79,8 @@ export function createOpenaiCompatible(options: OpenaiCompatibleProviderSettings
     return new OpenAIResponsesLanguageModel(modelId, {
       provider: `${options.name ?? "openai-compatible"}.responses`,
       headers: getHeaders,
-      url: ({ path }) => `${baseURL}${path}`,
+      // If baseURL contains 'inference' or ends with 'completions', treat it as complete endpoint
+      url: ({ path }) => (baseURL.includes('inference') || baseURL.endsWith('completions')) ? baseURL : `${baseURL}${path}`,
       fetch: options.fetch,
     })
   }

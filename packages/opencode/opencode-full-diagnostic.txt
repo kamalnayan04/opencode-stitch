@@ -1,0 +1,38 @@
+[DIAG] global/index.ts - About to create directories
+[DIAG] xdgData: /Users/kamal.nayan@grofers.com/.local/share xdgCache: /Users/kamal.nayan@grofers.com/.cache xdgConfig: /Users/kamal.nayan@grofers.com/.config xdgState: /Users/kamal.nayan@grofers.com/.local/state
+[DIAG] Computed paths: {
+  data: "/Users/kamal.nayan@grofers.com/.local/share/opencode",
+  cache: "/Users/kamal.nayan@grofers.com/.cache/opencode",
+  config: "/Users/kamal.nayan@grofers.com/.config/opencode",
+  state: "/Users/kamal.nayan@grofers.com/.local/state/opencode",
+}
+[DIAG] Global.Path: {
+  home: [Getter],
+  data: "/Users/kamal.nayan@grofers.com/.local/share/opencode",
+  bin: "/Users/kamal.nayan@grofers.com/.local/share/opencode/bin",
+  log: "/Users/kamal.nayan@grofers.com/.local/share/opencode/log",
+  cache: "/Users/kamal.nayan@grofers.com/.cache/opencode",
+  config: "/Users/kamal.nayan@grofers.com/.config/opencode",
+  state: "/Users/kamal.nayan@grofers.com/.local/state/opencode",
+}
+[DIAG] Starting directory creation...
+[DIAG] Directory creation complete
+[DIAG] About to read cache version...
+[DIAG] Cache version: 21 Expected: 21
+[DIAG] global/index.ts - Module initialization complete
+[DIAG] index.ts - Starting execution
+[DIAG] index.ts - Creating yargs CLI
+[DIAG] index.ts - After middleware, before guard check
+[DIAG] index.ts - import.meta.main = true
+[DIAG] index.ts - Inside import.meta.main guard
+[DIAG] index.ts - About to configure CLI
+[DIAG] index.ts - About to call cli.parse()
+[DIAG] index.ts - About to check for database migration marker
+[DIAG] index.ts - Environment variables set, about to call Log.Default.info
+[DIAG] index.ts - Log.Default.info completed successfully
+[DIAG] index.ts - About to check database marker existence
+[DIAG] index.ts - Marker path: /Users/kamal.nayan@grofers.com/.local/share/opencode/opencode.db
+[DIAG] index.ts - Calling Filesystem.exists...
+[DIAG] index.ts - Filesystem.exists returned: true
+[DIAG] index.ts - Middleware function completing
+[DIAG] index.ts - cli.parse() completed successfully

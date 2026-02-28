@@ -1,0 +1,17 @@
+[2026-02-27T19:04:32.749Z] Error: Error parsing /Users/kamal.nayan@grofers.com/StudioProjects/opencode/packages/sdk/js/openapi.json: end of the stream or a document separator is expected (1:8)
+
+ 1 | [DIAG] global/index.ts - About to creat ...
+------------^
+ 2 | [DIAG] xdgData: /Users/kamal.nayan@grof ...
+ 3 | [DIAG] Computed paths: {
+Stack:
+JSONParserError: Error parsing /Users/kamal.nayan@grofers.com/StudioProjects/opencode/packages/sdk/js/openapi.json: end of the stream or a document separator is expected (1:8)
+
+ 1 | [DIAG] global/index.ts - About to creat ...
+------------^
+ 2 | [DIAG] xdgData: /Users/kamal.nayan@grof ...
+ 3 | [DIAG] Computed paths: {
+    at handler (/Users/kamal.nayan@grofers.com/StudioProjects/opencode/node_modules/.bun/@hey-api+json-schema-ref-parser@1.2.2/node_modules/@hey-api/json-schema-ref-parser/dist/lib/parsers/yaml.js:24:35)
+    at <anonymous> (/Users/kamal.nayan@grofers.com/StudioProjects/opencode/node_modules/.bun/@hey-api+json-schema-ref-parser@1.2.2/node_modules/@hey-api/json-schema-ref-parser/dist/lib/util/plugins.js:24:45)
+    at <anonymous> (/Users/kamal.nayan@grofers.com/StudioProjects/opencode/node_modules/.bun/@hey-api+json-schema-ref-parser@1.2.2/node_modules/@hey-api/json-schema-ref-parser/dist/lib/util/plugins.js:40:17)
+    at processTicksAndRejections (native:7:39)

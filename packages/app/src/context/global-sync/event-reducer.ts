@@ -13,6 +13,7 @@ import type {
 } from "@opencode-ai/sdk/v2/client"
 import type { State, VcsCache } from "./types"
 import { trimSessions } from "./session-trim"
+import { flowLogger } from "@opencode-ai/opencode/shared/debug-logger"
 
 export function applyGlobalEvent(input: {
   event: { type: string; properties?: unknown }
@@ -241,10 +242,52 @@ export function applyDirectoryEvent(input: {
     }
     case "message.part.delta": {
       const props = event.properties as { messageID: string; partID: string; field: string; delta: string }
+      
+      flowLogger.ui('🎨 UI Reducer received message.part.delta event', {
+        messageID: props.messageID,
+        partID: props.partID,
+        field: props.field,
+        deltaLength: props.delta.length,
+        eventType: 'message.part.delta'
+      });
+      
       const parts = input.store.part[props.messageID]
-      if (!parts) break
+      
+      // FIX: Create part array if it doesn't exist
+      if (!parts) {
+        input.setStore("part", props.messageID, [
+          {
+            id: props.partID,
+            type: "text",
+            text: props.delta,
+            messageID: props.messageID,
+            sessionID: ""
+          } as Part
+        ])
+        break
+      }
+      
       const result = Binary.search(parts, props.partID, (p) => p.id)
-      if (!result.found) break
+      
+      // FIX: Create part if it doesn't exist yet
+      if (!result.found) {
+        input.setStore(
+          "part",
+          props.messageID,
+          produce((draft) => {
+            draft.splice(result.index, 0, {
+              id: props.partID,
+              type: "text",
+              text: props.delta,
+              messageID: props.messageID,
+              sessionID: ""
+            } as Part)
+          }),
+        )
+        break
+      }
+      
+      // Existing code continues - append delta to existing part
       input.setStore(
         "part",
         props.messageID,
