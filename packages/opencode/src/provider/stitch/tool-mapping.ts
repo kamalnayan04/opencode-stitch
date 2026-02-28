@@ -47,6 +47,12 @@ export const TOOL_NAME_MAPPING: Record<string, string> = {
   'lsp_prepare_rename': 'lsp_prepare_rename',
   'lsp_rename': 'lsp_rename',
 
+  // AST operations - map to bash if not available
+  'ast_grep': 'bash',  // Execute as bash command
+  'ast_grep_search': 'bash',  // AST search as bash
+  'ast_grep_replace': 'bash',  // AST replace as bash
+  'list_code_definition_names': 'ast_grep_search',  // Code definitions can use AST grep
+
   // Custom tool fallbacks
   'explore': 'bash',  // Directory exploration as bash (ls -la)
 
@@ -94,15 +100,6 @@ export const TOOL_NAME_MAPPING: Record<string, string> = {
   'look_at': 'look_at',
   'skill_mcp': 'skill_mcp',
 
-  // Background and AST operations
-  'background_launch_agent': 'task',
-  'ast_grep_search': 'bash',
-  'ast_grep': 'bash',
-  'ast_grep_replace': 'bash',
-  'session_info': 'bash',
-  'background_output': 'task',
-  'list_code_definition_names': 'bash',
-
   // Special operations
   'fetch_instructions': 'read',  // Fetching instructions is like reading
   'debug': 'bash',  // Debug operations use bash
@@ -142,14 +139,14 @@ export const ARGUMENT_NAME_MAPPING: Record<string, Record<string, string>> = {
   // write_file → write: path → filePath (function_calls format)
   'write_file': {
     'path': 'filePath',
-    'file': 'filePath',
-    'filename': 'filePath',
+    'file': 'filePath',          // Added
+    'filename': 'filePath',      // Added
     'file_path': 'filePath',
-    'filepath': 'filePath',
+    'filepath': 'filePath',      // Added
     'content': 'content',
-    'text': 'content',
-    'data': 'content',
-    'body': 'content',
+    'text': 'content',           // Added
+    'data': 'content',           // Added
+    'body': 'content',           // Added
   },
 
   // write_to_file → write: path → filePath (legacy format)
@@ -196,22 +193,16 @@ export const ARGUMENT_NAME_MAPPING: Record<string, Record<string, string>> = {
   // search_files → grep: regex → pattern
   'search_files': {
     'regex': 'pattern',
-    'query': 'pattern',
-    'term': 'pattern',
-    'text': 'pattern',
-    'search': 'pattern',
-    'pattern': 'pattern',
+    'query': 'pattern',          // Added
+    'term': 'pattern',           // Added
+    'text': 'pattern',           // Added
+    'search': 'pattern',         // Added
+    'pattern': 'pattern',        // Keep as-is
   },
 
   // list_files → glob
   'list_files': {
-    'pattern': 'pattern',
-    'query': 'pattern',
-  },
-
-  'glob': {
-    'pattern': 'pattern',
-    'query': 'pattern',
+    // path stays as path for glob
   },
 
   // perform_file_operation → edit
@@ -222,7 +213,7 @@ export const ARGUMENT_NAME_MAPPING: Record<string, Record<string, string>> = {
   // Stitch hyphenated tool names argument mappings
   'file-read': {
     'path': 'filePath',
-    'file': 'filePath',
+    'file': 'filePath',  // Support both path and file
   },
 
   'file-write': {
@@ -237,7 +228,7 @@ export const ARGUMENT_NAME_MAPPING: Record<string, Record<string, string>> = {
 
   'file-search': {
     'query': 'pattern',
-    'pattern': 'pattern',
+    'pattern': 'pattern',  // Support both query and pattern
   },
 
   'file-list': {
@@ -246,29 +237,29 @@ export const ARGUMENT_NAME_MAPPING: Record<string, Record<string, string>> = {
 
   'command-execute': {
     'cmd': 'command',
-    'command': 'command',
+    'command': 'command',  // Support both
   },
 
   // grep argument mapping - support all common variations
   'grep': {
     'search_term': 'pattern',
-    'query': 'pattern',
-    'term': 'pattern',
-    'text': 'pattern',
-    'search': 'pattern',
-    'pattern': 'pattern',
+    'query': 'pattern',          // Added
+    'term': 'pattern',           // Added
+    'text': 'pattern',           // Added
+    'search': 'pattern',         // Added
+    'pattern': 'pattern',        // Keep as-is
     'directory': 'path',
     'file_pattern': 'glob',
-    'glob': 'glob',
+    'glob': 'glob',              // Keep as-is
   },
 
   // search argument mapping (generic search tool)
   'search': {
     'query': 'pattern',
-    'term': 'pattern',
-    'text': 'pattern',
-    'search': 'pattern',
-    'pattern': 'pattern',
+    'term': 'pattern',           // Added
+    'text': 'pattern',           // Added
+    'search': 'pattern',         // Added
+    'pattern': 'pattern',        // Added
     'goal': 'description',
     'downstream': 'description',
     'request': 'description',
@@ -279,15 +270,13 @@ export const ARGUMENT_NAME_MAPPING: Record<string, Record<string, string>> = {
   'read': {
     'path': 'filePath',
     'file': 'filePath',
-    'filename': 'filePath',
+    'filename': 'filePath',      // Added
     'file_path': 'filePath',
-    'filepath': 'filePath',
+    'filepath': 'filePath',      // Added
     'start-line': 'startLine',
     'start_line': 'startLine',
-    'startLine': 'startLine',
     'end-line': 'endLine',
     'end_line': 'endLine',
-    'endLine': 'endLine',
     'offset': 'offset',
     'limit': 'limit'
   },
@@ -295,35 +284,35 @@ export const ARGUMENT_NAME_MAPPING: Record<string, Record<string, string>> = {
   // write argument mapping - support all common variations
   'write': {
     'path': 'filePath',
-    'file': 'filePath',
-    'filename': 'filePath',
+    'file': 'filePath',          // Added
+    'filename': 'filePath',      // Added
     'file_path': 'filePath',
-    'filepath': 'filePath',
+    'filepath': 'filePath',      // Added
     'content': 'content',
-    'text': 'content',
-    'data': 'content',
-    'body': 'content',
+    'text': 'content',           // Added
+    'data': 'content',           // Added
+    'body': 'content',           // Added
   },
 
   // edit argument mapping - support all common variations
   'edit': {
     'path': 'filePath',
-    'file': 'filePath',
-    'filename': 'filePath',
+    'file': 'filePath',          // Added
+    'filename': 'filePath',      // Added
     'file_path': 'filePath',
-    'filepath': 'filePath',
+    'filepath': 'filePath',      // Added
     'old_str': 'oldString',
     'new_str': 'newString',
-    'oldString': 'oldString',
-    'newString': 'newString',
+    'oldString': 'oldString',    // Added
+    'newString': 'newString',    // Added
   },
 
   // bash argument mapping - support all common variations
   'bash': {
     'command': 'command',
     'cmd': 'command',
-    'script': 'command',
-    'code': 'command',
+    'script': 'command',         // Added
+    'code': 'command',           // Added
   },
 
   // execute argument mapping (maps to bash)
@@ -393,24 +382,6 @@ export const ARGUMENT_NAME_MAPPING: Record<string, Record<string, string>> = {
     'find': 'oldString',
     'replacement': 'newString',
   },
-
-  // Background agent mapping
-  'background_launch_agent': {
-    'agent_type': 'subagent_type',
-    'goal': 'prompt',
-    'mode': 'description',
-  },
-
-  'background_output': {
-    'background_id': 'task_id',
-  },
-
-  // AST search mapping
-  'ast_grep_search': {
-    'pattern': 'pattern',
-    'search_pattern': 'pattern',
-    'query': 'pattern',
-  },
 };
 
 /**
@@ -447,12 +418,6 @@ export function generateCustomToolCommand(toolName: string, args: Record<string,
       if (!searchPattern || !replacement) return null;
       return `sg run --pattern="${searchPattern}" --rewrite="${replacement}"`;
 
-    case 'session_info':
-      return `echo 'Session info: Project directory is ${process.cwd()}'`;
-
-    case 'background_output':
-      return `echo 'No background tasks currently running in this context.'`;
-
     default:
       return null;
   }
@@ -482,20 +447,6 @@ export function mapArguments(stitchToolName: string, args: Record<string, any>):
   if (stitchToolName === 'list_dir' || stitchToolName === 'list_directory') {
     const listPath = args.path || '.';
     return { command: `ls -la ${listPath}` };
-  }
-
-  // Handle session_info and background_output (informational stubs)
-  if (stitchToolName === 'session_info' || stitchToolName === 'background_output_stub') {
-    const cmd = generateCustomToolCommand(stitchToolName, args);
-    return { command: cmd };
-  }
-
-  // Handle ast_grep_search by generating bash command
-  if (stitchToolName === 'ast_grep_search') {
-    const pattern = args.pattern || args.search_pattern || args.query;
-    if (pattern) {
-      return { command: `sg run --pattern="${pattern}"`, description: `AST search for "${pattern}"` };
-    }
   }
 
   if (argumentMapping) {
@@ -605,34 +556,6 @@ export function mapArguments(stitchToolName: string, args: Record<string, any>):
     }
   }
 
-  // CRITICAL: Handle task tool (background agents)
-  if (mappedToolName === 'task') {
-    // Handle background_launch_agent specific mapping
-    if (stitchToolName === 'background_launch_agent') {
-      // Ensure agent_type is mapped correctly (default to general)
-      if (mappedArgs.subagent_type === 'librarian') {
-        mappedArgs.subagent_type = 'general';
-      } else if (!mappedArgs.subagent_type) {
-        mappedArgs.subagent_type = args.agent_type || 'general';
-      }
-
-      // Synthesize description if missing
-      if (!mappedArgs.description) {
-        mappedArgs.description = args.goal || 'Background task';
-      }
-    }
-
-    // Handle background_output specific mapping
-    if (stitchToolName === 'background_output') {
-      if (!mappedArgs.description) {
-        mappedArgs.description = `Retrieving output for ${mappedArgs.task_id || 'task'}`;
-      }
-      if (!mappedArgs.prompt) {
-        mappedArgs.prompt = 'Please provide the results of the background task.';
-      }
-    }
-  }
-
   // CRITICAL: Auto-generate required fields for bash tool
   if (mappedToolName === 'bash') {
     // Generate description from command if not provided
@@ -716,7 +639,7 @@ export function mapArguments(stitchToolName: string, args: Record<string, any>):
 /**
  * Reverse map OpenCode tool name back to Stitch tool name
  * E.g., "bash" might have been "ast_grep" originally
- * 
+ *
  * @param openCodeToolName - The OpenCode tool name to reverse map
  * @returns The original Stitch tool name, or the input if no mapping found
  */
@@ -739,7 +662,7 @@ export function reverseMapToolName(openCodeToolName: string): string {
 /**
  * Reverse map OpenCode argument names back to Stitch argument names
  * E.g., {pattern: "foo", filePath: "bar"} → {search_term: "foo", file_path: "bar"}
- * 
+ *
  * @param openCodeToolName - The OpenCode tool name (used to lookup mapping)
  * @param args - Arguments with OpenCode names
  * @returns Arguments with Stitch names

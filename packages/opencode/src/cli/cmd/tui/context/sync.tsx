@@ -304,13 +304,13 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
           // FIX: Add null safety for delta field
           const delta = event.properties.delta || '';
           
-          flowLogger.ui('🖥️  TUI received message.part.delta event', {
-            messageID: event.properties.messageID,
-            partID: event.properties.partID,
-            field: event.properties.field,
-            deltaLength: delta.length,
-            eventType: 'message.part.delta'
-          });
+          // flowLogger.uiReducer('🖥️  TUI received message.part.delta event', {
+          //   messageID: event.properties.messageID,
+          //   partID: event.properties.partID,
+          //   field: event.properties.field,
+          //   deltaLength: delta.length,
+          //   eventType: 'message.part.delta'
+          // });
           
           const parts = store.part[event.properties.messageID]
           

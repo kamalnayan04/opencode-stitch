@@ -13,7 +13,7 @@ import type {
 } from "@opencode-ai/sdk/v2/client"
 import type { State, VcsCache } from "./types"
 import { trimSessions } from "./session-trim"
-import { flowLogger } from "@opencode-ai/opencode/shared/debug-logger"
+// import { flowLogger } from "@opencode-ai/opencode"
 
 export function applyGlobalEvent(input: {
   event: { type: string; properties?: unknown }
@@ -243,7 +243,7 @@ export function applyDirectoryEvent(input: {
     case "message.part.delta": {
       const props = event.properties as { messageID: string; partID: string; field: string; delta: string }
       
-      flowLogger.ui('🎨 UI Reducer received message.part.delta event', {
+      flowLogger.uiReducer('🎨 UI Reducer received message.part.delta event', {
         messageID: props.messageID,
         partID: props.partID,
         field: props.field,
