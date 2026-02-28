@@ -394,6 +394,10 @@ export class StitchLanguageModel implements LanguageModelV2 {
         const reader = response.body!.getReader();
         const decoder = new TextDecoder();
         const parser = new UniversalXmlParser();
+        // Safety net: build set of registered tool names to filter unknown tools
+        const registeredToolNames = new Set<string>(
+          options.tools?.map((t: any) => t.name).filter(Boolean) ?? []
+        );
         let buffer = '';
         let lastActivity = Date.now();
         let isActiveText = false;
@@ -425,6 +429,11 @@ export class StitchLanguageModel implements LanguageModelV2 {
                   const name = toolCall.toolName || 'unknown';
                   const inputArgs = toolCall.args || '{}';
                   debugLogger.withCorrelationId('tool-emit-flush').info('🔍 TOOL-CALL EMIT (flush)', { toolName: name, inputArgs, inputType: typeof inputArgs });
+                  // Safety net: skip unknown tools to prevent 'Invalid' in TUI
+                  if (!registeredToolNames.has(name) && name !== 'invalid') {
+                    debugLogger.withCorrelationId('tool-emit-flush').warn('⚠️ SKIPPING unregistered tool', { toolName: name, registeredTools: [...registeredToolNames] });
+                    continue;
+                  }
                   controller.enqueue({ type: 'tool-input-start', id, toolName: name } as any);
                   controller.enqueue({ type: 'tool-input-delta', id, delta: inputArgs } as any);
                   controller.enqueue({ type: 'tool-input-end', id } as any);
@@ -489,6 +498,11 @@ export class StitchLanguageModel implements LanguageModelV2 {
                     const inputArgsObj = mapArguments(rawName, rawArgs);
                     const inputArgs = JSON.stringify(inputArgsObj);
                     debugLogger.withCorrelationId('tool-emit-native').info('🔍 TOOL-CALL EMIT (native)', { toolName: name, rawName, rawArgs, inputArgsObj, inputArgs, inputType: typeof inputArgs });
+                    // Safety net: skip unknown tools to prevent 'Invalid' in TUI
+                    if (!registeredToolNames.has(name) && name !== 'invalid') {
+                      debugLogger.withCorrelationId('tool-emit-native').warn('⚠️ SKIPPING unregistered tool', { toolName: name, rawName });
+                      continue;
+                    }
 
                     controller.enqueue({ type: 'tool-input-start', id, toolName: name } as any);
                     controller.enqueue({ type: 'tool-input-delta', id, delta: inputArgs } as any);
@@ -509,6 +523,11 @@ export class StitchLanguageModel implements LanguageModelV2 {
                       const name = toolCall.toolName || 'unknown';
                       const inputArgs = toolCall.args || '{}';
                       debugLogger.withCorrelationId('tool-emit-stream').info('🔍 TOOL-CALL EMIT (stream)', { toolName: name, inputArgs, inputType: typeof inputArgs, rawToolCall: JSON.stringify(toolCall) });
+                      // Safety net: skip unknown tools to prevent 'Invalid' in TUI
+                      if (!registeredToolNames.has(name) && name !== 'invalid') {
+                        debugLogger.withCorrelationId('tool-emit-stream').warn('⚠️ SKIPPING unregistered tool', { toolName: name });
+                        continue;
+                      }
                       controller.enqueue({ type: 'tool-input-start', id, toolName: name } as any);
                       controller.enqueue({ type: 'tool-input-delta', id, delta: inputArgs } as any);
                       controller.enqueue({ type: 'tool-input-end', id } as any);

@@ -12,6 +12,11 @@ export const KNOWN_TOOLS = Array.from(new Set([
   'execute', 'execute_command', 'command-execute', 'command', 'shell',
   'background_launch_agent', 'ast_grep_search', 'session_info', 'background_output',
   'search', 'search_files', 'file-search', 'file-read', 'file-write', 'file-edit', 'file-list',
+  'create_task', 'complete_task', 'finish_task', 'start_task', 'end_task', 'delegate_task',
+  'new_task', 'switch_mode',
+  // All registered OpenCode tool names (must be complete)
+  'websearch', 'codesearch', 'list', 'batch', 'plan_exit', 'plan_enter', 'lsp', 'invalid',
+  'todoread',
 ]));
 
 function unescapeXml(unsafe: string) {

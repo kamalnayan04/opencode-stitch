@@ -32,30 +32,36 @@ export const TOOL_NAME_MAPPING: Record<string, string> = {
   'search': 'grep',  // Generic search maps to grep
   'search_files': 'grep',
   'vector_query': 'grep',  // Vector query is semantic search, maps to grep
-  'search_org': 'grep_app_searchGitHub',  // Organization search
+  'search_org': 'grep',  // Organization search → grep (closest available tool)
 
   // Command execution
   'execute_command': 'bash',
   'execute': 'bash',
 
-  // LSP operations - these already match opencode names
+  // LSP operations - all map to the single 'lsp' tool
   'lsp': 'lsp',
-  'lsp_goto_definition': 'lsp_goto_definition',
-  'lsp_find_references': 'lsp_find_references',
-  'lsp_symbols': 'lsp_symbols',
-  'lsp_diagnostics': 'lsp_diagnostics',
-  'lsp_prepare_rename': 'lsp_prepare_rename',
-  'lsp_rename': 'lsp_rename',
+  'lsp_goto_definition': 'lsp',
+  'lsp_find_references': 'lsp',
+  'lsp_symbols': 'lsp',
+  'lsp_diagnostics': 'lsp',
+  'lsp_prepare_rename': 'lsp',
+  'lsp_rename': 'lsp',
 
   // Custom tool fallbacks
   'explore': 'bash',  // Directory exploration as bash (ls -la)
 
   // Todo operations
   'update_todo_list': 'todowrite',
-  'update_plan': 'update_plan',  // Maps to itself
+  'update_plan': 'todowrite',  // Plan updates map to todowrite
 
   // Task and mode operations
   'new_task': 'task',
+  'create_task': 'task',
+  'complete_task': 'task',
+  'finish_task': 'task',
+  'start_task': 'task',
+  'end_task': 'task',
+  'delegate_task': 'task',
   'switch_mode': 'task',
 
   // Directory listing
@@ -66,16 +72,16 @@ export const TOOL_NAME_MAPPING: Record<string, string> = {
   'ask_followup_question': 'question',
 
   // MCP operations
-  'use_mcp_tool': 'skill_mcp',
-  'access_mcp_resource': 'skill_mcp',
+  'use_mcp_tool': 'skill',
+  'access_mcp_resource': 'skill',
 
   // Web operations
-  'web_search': 'google_search',  // or 'websearch_web_search_exa'
-  'browser_action': 'look_at',
+  'web_search': 'websearch',
+  'browser_action': 'bash',  // Browser actions fallback to bash
 
   // GitHub operations
-  'github': 'grep_app_searchGitHub',
-  'fetch_prs': 'grep_app_searchGitHub',
+  'github': 'grep',
+  'fetch_prs': 'bash',  // PR fetching via bash commands
 
   // Operations that map to themselves (already correct)
   'read': 'read',
@@ -90,9 +96,9 @@ export const TOOL_NAME_MAPPING: Record<string, string> = {
   'question': 'question',
   'webfetch': 'webfetch',
   'todowrite': 'todowrite',
-  'todoread': 'todoread',
-  'look_at': 'look_at',
-  'skill_mcp': 'skill_mcp',
+  // 'todoread' is commented out in registry — skip mapping
+  'look_at': 'bash',  // look_at not registered, use bash
+  'skill_mcp': 'skill',  // skill_mcp not registered, use skill
 
   // Background and AST operations
   'background_launch_agent': 'task',
@@ -634,6 +640,22 @@ export function mapArguments(stitchToolName: string, args: Record<string, any>):
         mappedArgs.prompt = 'Please provide the results of the background task.';
       }
     }
+
+    // Handle create_task / complete_task / finish_task style tool calls
+    // These are Anthropic-style task management tool names that need prompt and subagent_type
+    const taskAliases = ['create_task', 'complete_task', 'finish_task', 'start_task', 'end_task', 'delegate_task', 'new_task'];
+    if (taskAliases.includes(stitchToolName)) {
+      if (!mappedArgs.description) {
+        mappedArgs.description = args.description || args.goal || args.name || args.title || 'Task';
+      }
+      if (!mappedArgs.prompt) {
+        // Use result, goal, instructions, or description as the prompt
+        mappedArgs.prompt = args.prompt || args.result || args.goal || args.instructions || mappedArgs.description || 'Complete the task';
+      }
+      if (!mappedArgs.subagent_type) {
+        mappedArgs.subagent_type = args.subagent_type || args.agent_type || args.agent || 'general';
+      }
+    }
   }
 
   // CRITICAL: Auto-generate required fields for bash tool
@@ -732,6 +754,61 @@ export function mapArguments(stitchToolName: string, args: Record<string, any>):
       if (process.env.STITCH_DEBUG === 'true') {
         console.log(`[Tool Mapping] Generated description for edit: "${mappedArgs.description}"`);
       }
+    }
+  }
+
+  // CRITICAL: Auto-generate required fields for grep tool
+  if (mappedToolName === 'grep') {
+    if (!mappedArgs.pattern) {
+      const patternValue = args.pattern || args.query || args.search || args.text
+        || args.search_term || args.regex || args.search_pattern || args.term;
+      if (patternValue && typeof patternValue === 'string') {
+        mappedArgs.pattern = patternValue;
+      }
+    }
+  }
+
+  // CRITICAL: Auto-generate required fields for websearch tool
+  if (mappedToolName === 'websearch') {
+    if (!mappedArgs.query) {
+      const queryValue = args.query || args.search || args.q || args.term
+        || args.search_query || args.text || args.keywords;
+      if (queryValue && typeof queryValue === 'string') {
+        mappedArgs.query = queryValue;
+      }
+    }
+  }
+
+  // CRITICAL: Auto-generate required fields for glob tool
+  if (mappedToolName === 'glob') {
+    if (!mappedArgs.pattern) {
+      const patternValue = args.pattern || args.glob || args.file_pattern
+        || args.include || args.filter || args.query;
+      if (patternValue && typeof patternValue === 'string') {
+        mappedArgs.pattern = patternValue;
+      }
+    }
+  }
+
+  // CRITICAL: Auto-generate required fields for lsp tool
+  if (mappedToolName === 'lsp') {
+    if (!mappedArgs.filePath) {
+      const fileValue = args.filePath || args.file || args.path || args.file_path || args.filename;
+      if (fileValue && typeof fileValue === 'string') {
+        mappedArgs.filePath = fileValue;
+      }
+    }
+    if (!mappedArgs.action) {
+      // Map LSP sub-tool names to actions
+      const actionMap: Record<string, string> = {
+        'lsp_goto_definition': 'definition',
+        'lsp_find_references': 'references',
+        'lsp_symbols': 'symbols',
+        'lsp_diagnostics': 'diagnostics',
+        'lsp_prepare_rename': 'prepare_rename',
+        'lsp_rename': 'rename',
+      };
+      mappedArgs.action = actionMap[stitchToolName] || args.action || 'diagnostics';
     }
   }
 
