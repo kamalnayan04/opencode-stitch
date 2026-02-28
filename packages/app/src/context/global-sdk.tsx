@@ -83,8 +83,25 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
         for (const event of events) {
           if (skip && event.payload.type === "message.part.delta") {
             const props = event.payload.properties
-            if (skip.has(deltaKey(event.directory, props.messageID, props.partID))) continue
+            if (skip.has(deltaKey(event.directory, props.messageID, props.partID))) {
+              console.log("[global-sdk] ⏭️  Skipping stale delta event", {
+                messageID: props.messageID,
+                partID: props.partID
+              });
+              continue
+            }
           }
+          
+          // FIX: Add debug logging for emitted delta events
+          if (event.payload.type === "message.part.delta") {
+            console.log("[global-sdk] 📤 Emitting message.part.delta event", {
+              messageID: event.payload.properties.messageID,
+              partID: event.payload.properties.partID,
+              deltaLength: event.payload.properties.delta?.length || 0,
+              directory: event.directory
+            });
+          }
+          
           emitter.emit(event.directory, event.payload)
         }
       })
@@ -148,6 +165,17 @@ export const { use: useGlobalSDK, provider: GlobalSDKProvider } = createSimpleCo
             streamErrorLogged = false
             const directory = event.directory ?? "global"
             const payload = event.payload
+            
+            // FIX: Add debug logging for delta events
+            if (payload.type === "message.part.delta") {
+              console.log("[global-sdk] 📥 Received message.part.delta event", {
+                messageID: payload.properties.messageID,
+                partID: payload.properties.partID,
+                deltaLength: payload.properties.delta?.length || 0,
+                directory
+              });
+            }
+            
             const k = key(directory, payload)
             if (k) {
               const i = coalesced.get(k)

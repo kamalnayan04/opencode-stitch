@@ -17,18 +17,21 @@ class DebugLogger {
     // File will be created on first write operation
   }
 
-  private ensureInitialized(): void {
-    if (this.initialized || !this.isEnabled) {
+  private static seenSessionIds = new Set<string>();
+
+  private ensureInitialized(correlationId: string | null): void {
+    if (!this.isEnabled || !correlationId) {
       return;
     }
 
-    try {
-      // Append a session start marker instead of overwriting
-      fs.appendFileSync(this.logPath, '\n\n' + '='.repeat(80) + '\n🆕 NEW SESSION START\n' + '='.repeat(80) + '\n\n');
-      this.initialized = true;
-    } catch (err) {
-      // Fail silently if can't create log file
-      this.isEnabled = false;
+    if (!DebugLogger.seenSessionIds.has(correlationId)) {
+      try {
+        fs.appendFileSync(this.logPath, '\n\n' + '='.repeat(80) + `\n🆕 NEW SESSION START: ${correlationId}\n` + '='.repeat(80) + '\n\n');
+        DebugLogger.seenSessionIds.add(correlationId);
+      } catch (err) {
+        // Fail silently if can't create log file
+        this.isEnabled = false;
+      }
     }
   }
 
@@ -107,7 +110,7 @@ class DebugLogger {
     if (!this.isEnabled) return;
 
     // Ensure file is initialized before first write
-    this.ensureInitialized();
+    this.ensureInitialized(this.correlationId);
 
     const timestamp = new Date().toISOString();
     const correlationId = this.correlationId || 'NO-CID';

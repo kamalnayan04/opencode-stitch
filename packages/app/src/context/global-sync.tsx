@@ -249,6 +249,16 @@ function createGlobalSync() {
     const directory = e.name
     const event = e.details
 
+    // FIX: Add debug logging for all events received
+    if (event.type === "message.part.delta") {
+      console.log("[global-sync] 📨 Received message.part.delta event from GlobalSDK", {
+        directory,
+        messageID: event.properties.messageID,
+        partID: event.properties.partID,
+        deltaLength: event.properties.delta?.length || 0
+      });
+    }
+
     if (directory === "global") {
       applyGlobalEvent({
         event,
@@ -271,7 +281,18 @@ function createGlobalSync() {
     }
 
     const existing = children.children[directory]
-    if (!existing) return
+    if (!existing) {
+      // FIX: Log when events are dropped due to missing directory
+      if (event.type === "message.part.delta") {
+        console.log("[global-sync] ⚠️  Dropping message.part.delta - directory not in children", {
+          directory,
+          availableDirectories: Object.keys(children.children),
+          messageID: event.properties.messageID,
+          partID: event.properties.partID
+        });
+      }
+      return
+    }
     children.mark(directory)
     const [store, setStore] = existing
     applyDirectoryEvent({

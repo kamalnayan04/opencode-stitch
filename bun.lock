@@ -50,6 +50,7 @@
         "luxon": "catalog:",
         "marked": "catalog:",
         "marked-shiki": "catalog:",
+        "opencode": "workspace:*",
         "remeda": "catalog:",
         "shiki": "catalog:",
         "solid-js": "catalog:",

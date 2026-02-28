@@ -202,9 +202,11 @@ function convertMessages(messages: LanguageModelV2CallOptions['prompt']): Stitch
         if (part.type === 'image') return '[Image content]';
         if (part.type === 'tool-call') {
           try {
-            const argsObj = typeof part.args === 'string' ? JSON.parse(part.args) : part.args;
+            const rawArgs = (part as any).args || (part as any).input || '{}';
+            const argsObj = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs;
             let xml = `<function_calls>\n<invoke name="${part.toolName}">\n`;
-            for (const [k, v] of Object.entries(argsObj)) {
+            for (const [k, v] of Object.entries(argsObj || {})) {
+              if (v === undefined || v === null) continue;
               xml += `  <parameter name="${k}">${typeof v === 'string' ? v : JSON.stringify(v)}</parameter>\n`;
             }
             xml += `</invoke>\n</function_calls>`;

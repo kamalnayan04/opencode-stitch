@@ -67,6 +67,7 @@
     "solid-list": "catalog:",
     "tailwindcss": "catalog:",
     "virtua": "catalog:",
-    "zod": "catalog:"
+    "zod": "catalog:",
+    "opencode": "workspace:*"
   }
 }

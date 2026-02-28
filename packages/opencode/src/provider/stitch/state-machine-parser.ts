@@ -110,10 +110,14 @@ export class UniversalXmlParser {
       const lastOpen = this.buffer.lastIndexOf('<');
       if (lastOpen !== -1) {
         const partial = this.buffer.substring(lastOpen);
-        const isPartialKnown = KNOWN_TOOLS.some(t => `<${t}`.startsWith(partial) || partial.startsWith(`<${t}`));
-        if ('<invoke'.startsWith(partial) ||
-          '<function_calls>'.startsWith(partial) ||
-          '</function_calls>'.startsWith(partial) ||
+        const isPartialKnown = KNOWN_TOOLS.some(t =>
+          `<${t}`.startsWith(partial) || partial.startsWith(`<${t}`) ||
+          `</${t}>`.startsWith(partial) || partial.startsWith(`</${t}`)
+        );
+        if ('<invoke'.startsWith(partial) || partial.startsWith('<invoke') ||
+          '</invoke>'.startsWith(partial) || partial.startsWith('</invoke>') ||
+          '<function_calls>'.startsWith(partial) || partial.startsWith('<function_calls') ||
+          '</function_calls>'.startsWith(partial) || partial.startsWith('</function_calls') ||
           isPartialKnown) {
           holdIndex = lastOpen;
         }
@@ -171,11 +175,13 @@ export class UniversalXmlParser {
       const closeTag = isInvoke ? `</invoke>` : `</${matchedTool}>`;
       const rawArgs = this.extractArgs(fullXml, openTagFull, closeTag, matchedTool, isInvoke);
 
-      toolCalls.push({
-        id: `call_${Date.now()}_${this.toolCallIdCounter++}`,
-        toolName: mapToolName(matchedTool),
-        args: JSON.stringify(mapArguments(matchedTool, rawArgs))
-      });
+      if (Object.keys(rawArgs).length > 0) {
+        toolCalls.push({
+          id: `call_${Date.now()}_${this.toolCallIdCounter++}`,
+          toolName: mapToolName(matchedTool),
+          args: JSON.stringify(mapArguments(matchedTool, rawArgs))
+        });
+      }
     } else {
       content += this.buffer;
     }
@@ -210,7 +216,7 @@ export class UniversalXmlParser {
       }
       if (!found) {
         const innerContent = fullXml.substring(openTagFull.length).replace(new RegExp(closeTag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$'), '').trim();
-        if (innerContent) rawArgs['command'] = unescapeXml(innerContent);
+        if (innerContent && !innerContent.includes('</function_calls>')) rawArgs['command'] = unescapeXml(innerContent);
       }
     } else {
       // Extract inner content (strip outer open/close tags)
@@ -230,7 +236,7 @@ export class UniversalXmlParser {
       // Fallback for simple content without nested tags (like <bash>ls -la</bash>)
       if (!found) {
         const innerContent = innerXml.trim();
-        if (innerContent) rawArgs['command'] = unescapeXml(innerContent);
+        if (innerContent && !innerContent.includes('</function_calls>')) rawArgs['command'] = unescapeXml(innerContent);
       }
     }
 
