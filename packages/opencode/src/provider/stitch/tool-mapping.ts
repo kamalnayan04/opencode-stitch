@@ -528,8 +528,9 @@ export function mapArguments(stitchToolName: string, args: Record<string, any>):
 
   // Fallback for filePath (used by read, write, edit tools)
   if ((mappedToolName === 'read' || mappedToolName === 'write' || mappedToolName === 'edit') && !mappedArgs.filePath) {
-    const filePathValue = args.filePath || args.path || args.file || args.filename || args.file_path || args.filepath;
-    if (filePathValue) {
+    const filePathValue = args.filePath || args.path || args.file || args.filename || args.file_path || args.filepath
+      || args.target || args.source || args.location || args.name || args.file_name;
+    if (filePathValue && typeof filePathValue === 'string') {
       mappedArgs.filePath = filePathValue;
       if (process.env.STITCH_DEBUG === 'true') {
         console.log(`[Tool Mapping] Fallback: Set filePath = "${filePathValue}"`);
@@ -550,8 +551,10 @@ export function mapArguments(stitchToolName: string, args: Record<string, any>):
 
   // Fallback for command (used by bash tool)
   if (mappedToolName === 'bash' && !mappedArgs.command) {
-    const commandValue = args.command || args.cmd || args.script || args.code;
-    if (commandValue) {
+    const commandValue = args.command || args.cmd || args.script || args.code
+      || args.run || args.execute || args.shell || args.input || args.action
+      || args.instructions || args.task || args.text;
+    if (commandValue && typeof commandValue === 'string') {
       mappedArgs.command = commandValue;
       if (process.env.STITCH_DEBUG === 'true') {
         console.log(`[Tool Mapping] Fallback: Set command = "${commandValue}"`);
@@ -635,6 +638,32 @@ export function mapArguments(stitchToolName: string, args: Record<string, any>):
 
   // CRITICAL: Auto-generate required fields for bash tool
   if (mappedToolName === 'bash') {
+    // Last-resort command fallback: if command is STILL undefined after all mappings,
+    // try extracting the longest string value from the original args as the command.
+    // This handles cases where the LLM uses completely unexpected parameter names
+    // like "instructions", "task", "run", "input", "action", etc.
+    if (!mappedArgs.command) {
+      // Try common aliases first from the ORIGINAL args
+      const commandValue = args.command || args.cmd || args.script || args.code
+        || args.run || args.execute || args.shell || args.input || args.action
+        || args.instructions || args.task || args.text;
+      if (commandValue && typeof commandValue === 'string') {
+        mappedArgs.command = commandValue;
+      } else {
+        // Absolute last resort: find the longest string value in args 
+        // (most likely to be the actual command)
+        let bestCandidate = '';
+        for (const [key, val] of Object.entries(args)) {
+          if (typeof val === 'string' && val.length > bestCandidate.length && key !== 'description') {
+            bestCandidate = val;
+          }
+        }
+        if (bestCandidate) {
+          mappedArgs.command = bestCandidate;
+        }
+      }
+    }
+
     // Generate description from command if not provided
     if (!mappedArgs.description) {
       const cmd = mappedArgs.command || '';
