@@ -243,13 +243,13 @@ export function applyDirectoryEvent(input: {
     case "message.part.delta": {
       const props = event.properties as { messageID: string; partID: string; field: string; delta: string }
       
-      flowLogger.uiReducer('🎨 UI Reducer received message.part.delta event', {
-        messageID: props.messageID,
-        partID: props.partID,
-        field: props.field,
-        deltaLength: props.delta.length,
-        eventType: 'message.part.delta'
-      });
+      // flowLogger.uiReducer('🎨 UI Reducer received message.part.delta event', {
+      //   messageID: props.messageID,
+      //   partID: props.partID,
+      //   field: props.field,
+      //   deltaLength: props.delta.length,
+      //   eventType: 'message.part.delta'
+      // });
       
       const parts = input.store.part[props.messageID]
       

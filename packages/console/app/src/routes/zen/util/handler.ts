@@ -861,7 +861,7 @@ export async function handler(
         db
           .update(KeyTable)
           .set({ timeUsed: sql`now()` })
-          .where(and(eq(KeyTable.workspaceID, authInfo.workspaceID), eq(KeyTable.id, authInfo.apiKeyId))),
+          .where(and(eq(KeyTable.workspaceID, authInfo.workspaceID), eq(KeyTable.id, authInfo.apiKeyId) as any)),
         ...(() => {
           if (billingSource === "subscription") {
             const plan = authInfo.billing.subscription!.plan
